@@ -32,10 +32,6 @@ function init() {
     // Controles
     controls = new THREE.OrbitControls(camera, renderer.domElement);
 
-    // Grid helper
-    const gridHelper = new THREE.GridHelper(10, 10);
-    scene.add(gridHelper);
-
     // Cargar modelo
     const loader = new THREE.GLTFLoader();
     loader.load(
