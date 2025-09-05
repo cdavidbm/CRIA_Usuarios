@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Portal de Cubos 3D</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="auth-form">
+            <h2>Login</h2>
+            <form id="loginForm">
+                <input type="text" placeholder="Usuario" id="loginUsername">
+                <input type="password" placeholder="Contraseña" id="loginPassword">
+                <button type="submit">Iniciar Sesión</button>
+                <div id="loginMessage"></div>
+            </form>
+
+            <h2>Registro</h2>
+            <form id="registerForm">
+                <input type="text" placeholder="Usuario" id="registerUsername">
+                <input type="password" placeholder="Contraseña" id="registerPassword">
+                <button type="submit">Registrarse</button>
+                <div id="registerMessage"></div>
+            </form>
+        </div>
+    </div>
+    <script src="auth.js"></script>
+</body>
+
+</html>

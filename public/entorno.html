@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Entorno 3D</title>
+    <style>
+        body {
+            margin: 0;
+        }
+
+        #environment {
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/loaders/GLTFLoader.js"></script>
+</head>
+
+<body>
+    <div id="environment"></div>
+    <script src="entorno.js"></script>
+</body>
+
+</html>

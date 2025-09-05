@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal de Edición Circular</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        :root {
+            /* Tamaños principales */
+            --controles-size: 800px;
+            --controles-radius: 50%;
+            --escena-size: 400px;
+            --knob-size: 80px;
+            --arc-radius: 300px;
+
+            /* Colores y transparencias */
+            --controles-bg: rgba(185, 185, 185, 0.075);
+            --controles-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.10) 100%);
+            --controles-border: rgba(255, 255, 255, 0.35);
+            --controles-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.25), 0 1.5px 8px 0 rgba(255, 255, 255, 0.18) inset;
+
+            --knob-bg-main: rgba(217, 255, 0, 0.288);
+            --knob-bg-secondary: rgba(11, 28, 179, 0.466);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', Arial, Helvetica, sans-serif;
+            font-size: 16px;
+            color: #1a2233;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        @keyframes gradientShift {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        /* Mensaje de carga */
+        #loadingMessage {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--controles-bg);
+            border: 2px solid var(--controles-border);
+            border-radius: 24px;
+            padding: 24px 32px;
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #1a2233;
+            backdrop-filter: blur(18px) saturate(1.25);
+            box-shadow: var(--controles-shadow);
+            z-index: 2000;
+            text-align: center;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 0.8;
+                transform: translate(-50%, -50%) scale(1);
+            }
+
+            50% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.02);
+            }
+        }
+
+        /* Contenedor circular de controles con efecto cristal */
+        #controles {
+            width: var(--controles-size);
+            height: var(--controles-size);
+            background: var(--controles-bg);
+            border-radius: var(--controles-radius);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--controles-shadow);
+            border: 2.5px solid var(--controles-border);
+            backdrop-filter: blur(18px) saturate(1.25);
+            -webkit-backdrop-filter: blur(18px) saturate(1.25);
+            overflow: hidden;
+        }
+
+        #controles::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: var(--controles-radius);
+            background: var(--controles-glass);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Contenedor de los knobs en arco */
+        #morphControls {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        /* Posicionamiento absoluto de cada knob en el arco superior */
+        #morphControls .slider-group {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: 'Inter', Arial, Helvetica, sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #1a2233;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.568), 0 1px 0 rgba(255, 255, 255, 0.644);
+            letter-spacing: 0.02em;
+            user-select: none;
+            filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.10));
+            background: transparent;
+            border: none;
+            padding: 0;
+            margin: 0;
+            border-radius: 0;
+            backdrop-filter: none;
+            box-shadow: none;
+        }
+
+        #morphControls .slider-group label {
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            border-radius: 0;
+            border: none;
+            backdrop-filter: none;
+            box-shadow: none;
+            color: #1a2233;
+            font-size: 0.85em;
+            font-weight: 600;
+            text-align: center;
+            display: block;
+        }
+
+        #morphControls .slider-group .knob-label-text {
+            margin-top: 8px;
+            font-size: 0.85em;
+            font-weight: 600;
+            color: #1a2233;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 2px 8px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px #fff4;
+            text-align: center;
+            pointer-events: none;
+            line-height: 1.2;
+            backdrop-filter: blur(2px);
+            min-width: 40px;
+        }
+
+        /* 6 knobs distribuidos en arco superior de -100° a +100° */
+        #morphControls .slider-group:nth-child(1) {
+            transform: translate(-50%, -50%) rotate(-100deg) translateY(calc(-1 * var(--arc-radius))) rotate(100deg);
+        }
+
+        #morphControls .slider-group:nth-child(2) {
+            transform: translate(-50%, -50%) rotate(-60deg) translateY(calc(-1 * var(--arc-radius))) rotate(60deg);
+        }
+
+        #morphControls .slider-group:nth-child(3) {
+            transform: translate(-50%, -50%) rotate(-20deg) translateY(calc(-1 * var(--arc-radius))) rotate(20deg);
+        }
+
+        #morphControls .slider-group:nth-child(4) {
+            transform: translate(-50%, -50%) rotate(20deg) translateY(calc(-1 * var(--arc-radius))) rotate(-20deg);
+        }
+
+        #morphControls .slider-group:nth-child(5) {
+            transform: translate(-50%, -50%) rotate(60deg) translateY(calc(-1 * var(--arc-radius))) rotate(-60deg);
+        }
+
+        #morphControls .slider-group:nth-child(6) {
+            transform: translate(-50%, -50%) rotate(100deg) translateY(calc(-1 * var(--arc-radius))) rotate(-100deg);
+        }
+
+        /* Estilo de los knobs circulares */
+        #morphControls input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: var(--knob-size);
+            height: var(--knob-size);
+            border-radius: 50%;
+            background: conic-gradient(var(--knob-bg-main) 0%,
+                    var(--knob-bg-main) calc(var(--val, 0) * 1%),
+                    var(--knob-bg-secondary) calc(var(--val, 0) * 1%),
+                    var(--knob-bg-secondary) 100%);
+            cursor: pointer;
+            box-shadow: 0 2px 12px 0 rgba(31, 38, 135, 0.12), 0 1.5px 8px 0 rgba(255, 255, 255, 0.10) inset;
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(4px);
+            transition: box-shadow 0.2s, border 0.2s;
+            outline: none;
+        }
+
+        #morphControls input[type="range"]:hover {
+            box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.22), 0 1.5px 8px 0 rgba(255, 255, 255, 0.18) inset;
+            border: 2.5px solid rgba(255, 255, 255, 0.38);
+        }
+
+        /* Ocultar la bolita del slider/knob */
+        #morphControls input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 0;
+            height: 0;
+        }
+
+        #morphControls input[type="range"]::-moz-range-thumb {
+            width: 0;
+            height: 0;
+            border: none;
+            background: transparent;
+        }
+
+        /* Escena 3D centrada dentro del círculo */
+        #modelContainer {
+            width: var(--escena-size);
+            height: var(--escena-size);
+            position: relative;
+            z-index: 3;
+            overflow: hidden;
+            border-radius: 50%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) inset;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+        }
+
+        #modelContainer canvas {
+            border-radius: 50%;
+        }
+
+        /* Contenedor de manipulaciones abajo de la escena */
+        #manipulaciones {
+            width: 60%;
+            max-width: 480px;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 40px;
+            z-index: 4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border-radius: 18px;
+            box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.10);
+            padding: 18px 24px 14px 24px;
+            backdrop-filter: blur(10px) saturate(1.1);
+            -webkit-backdrop-filter: blur(10px) saturate(1.1);
+            border: 1.5px solid rgba(255, 255, 255, 0.22);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        #manipulaciones .slider-group {
+            width: 100%;
+            margin-bottom: 15px;
+            text-align: center;
+            background: transparent;
+            border: none;
+            padding: 0;
+            border-radius: 0;
+            backdrop-filter: none;
+            box-shadow: none;
+        }
+
+        #manipulaciones .slider-group label {
+            font-size: 0.95em;
+            font-weight: 600;
+            color: #1a2233;
+            margin-bottom: 8px;
+            display: block;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
+            background: transparent;
+            border: none;
+            padding: 0;
+            border-radius: 0;
+            backdrop-filter: none;
+            box-shadow: none;
+        }
+
+        #manipulaciones input[type="range"] {
+            width: 80%;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(90deg, var(--knob-bg-main) 0%, var(--knob-bg-secondary) 100%);
+            border-radius: 3px;
+            outline: none;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) inset;
+            cursor: pointer;
+        }
+
+        #manipulaciones input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s ease;
+        }
+
+        #manipulaciones input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+        }
+
+        #manipulaciones input[type="color"] {
+            width: 80%;
+            height: 40px;
+            border: none;
+            border-radius: 8px;
+            background: transparent;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.2s ease;
+        }
+
+        #manipulaciones input[type="color"]:hover {
+            transform: scale(1.02);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+        }
+
+        .value-display {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.9);
+            color: #1a2233;
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 0.8em;
+            font-weight: 600;
+            min-width: 40px;
+            text-align: center;
+            margin-left: 8px;
+        }
+
+        #sendModel {
+            margin: 8px;
+            padding: 12px 24px;
+            border-radius: 12px;
+            border: none;
+            background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%);
+            color: #fff;
+            font-weight: 700;
+            font-size: 1em;
+            box-shadow: 0 8px 24px rgba(240, 147, 251, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        #sendModel:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px rgba(240, 147, 251, 0.4);
+            background: linear-gradient(90deg, #f5576c 0%, #f093fb 100%);
+        }
+
+        #sendModel:active {
+            transform: translateY(0);
+            box-shadow: 0 6px 20px rgba(240, 147, 251, 0.3);
+        }
+
+        /* Responsive design */
+        @media (max-width: 1000px) {
+            :root {
+                --controles-size: 600px;
+                --escena-size: 300px;
+                --knob-size: 60px;
+                --arc-radius: 220px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            :root {
+                --controles-size: 500px;
+                --escena-size: 250px;
+                --knob-size: 50px;
+                --arc-radius: 180px;
+            }
+
+            #manipulaciones {
+                width: 80%;
+                bottom: 20px;
+                padding: 12px 18px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loadingMessage">✨ Cargando modelo...</div>
+
+    <div id="controles">
+        <!-- Contenedor de knobs circulares -->
+        <div id="morphControls">
+            <!-- Los sliders de morphTargets se añadirán aquí dinámicamente -->
+        </div>
+
+        <!-- Escena 3D centrada -->
+        <div id="modelContainer"></div>
+
+        <!-- Controles básicos en la parte inferior -->
+        <div id="manipulaciones">
+            <div class="slider-group">
+                <label for="modelSize">
+                    🔍 Tamaño del Modelo
+                    <span class="value-display" id="sizeValue">1.0</span>
+                </label>
+                <input type="range" id="modelSize" min="0.1" max="3" step="0.1" value="1">
+            </div>
+
+            <div class="slider-group">
+                <label for="modelColor">🎨 Color del Modelo</label>
+                <input type="color" id="modelColor" value="#ff0000">
+            </div>
+
+            <button id="sendModel">
+                🚀 Enviar Modelo
+            </button>
+        </div>
+    </div>
+
+    <script src="portal.js"></script>
+    <script>
+        // Script adicional para mejorar la visualización de knobs
+        document.addEventListener('DOMContentLoaded', function () {
+            // Función para actualizar el indicador visual del knob
+            function updateKnobVisual(slider) {
+                const value = parseFloat(slider.value);
+                const min = parseFloat(slider.min) || 0;
+                const max = parseFloat(slider.max) || 1;
+                const percentage = ((value - min) / (max - min)) * 100;
+
+                slider.style.setProperty('--percentage', percentage);
+
+                // Actualizar el valor mostrado
+                let valueSpan = slider.parentElement.querySelector('.knob-value');
+                if (!valueSpan) {
+                    valueSpan = document.createElement('span');
+                    valueSpan.className = 'knob-value';
+                    slider.parentElement.appendChild(valueSpan);
+                }
+                valueSpan.textContent = value.toFixed(2);
+            }
+
+            // Observar cambios en el contenedor de morphControls
+            const observer = new MutationObserver(function (mutations) {
+                mutations.forEach(function (mutation) {
+                    mutation.addedNodes.forEach(function (node) {
+                        if (node.nodeType === 1 && node.classList && node.classList.contains('slider-group')) {
+                            const slider = node.querySelector('input[type="range"]');
+                            if (slider) {
+                                // Inicializar visual
+                                updateKnobVisual(slider);
+
+                                // Actualizar en tiempo real
+                                slider.addEventListener('input', function () {
+                                    updateKnobVisual(this);
+                                });
+                            }
+                        }
+                    });
+                });
+            });
+
+            // Observar el contenedor de morphControls
+            const morphControls = document.getElementById('morphControls');
+            if (morphControls) {
+                observer.observe(morphControls, { childList: true, subtree: true });
+
+                // También inicializar knobs existentes
+                morphControls.querySelectorAll('input[type="range"]').forEach(updateKnobVisual);
+            }
+        });
+    </script>
+</body>
+
+</html>
