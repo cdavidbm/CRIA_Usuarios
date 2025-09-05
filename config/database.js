@@ -1,8 +1,10 @@
 const mongoose = require('mongoose');
 
 const connectDB = async () => {
+    // La URL de conexión ahora se leerá de una variable de entorno
+    const dbURI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/cubes-portal';
     try {
-        const conn = await mongoose.connect('mongodb://127.0.0.1:27017/cubes-portal', {
+        const conn = await mongoose.connect(dbURI, {
             useNewUrlParser: true,
             useUnifiedTopology: true,
             serverSelectionTimeoutMS: 5000,
