@@ -108,6 +108,9 @@ app.post('/login', async (req, res) => {
     }
 });
 
-http.listen(3000, () => {
-    console.log('Servidor corriendo en puerto 3000');
+// El servidor escuchará en el puerto que le asigne Render, o en el 3000 si es local.
+const PORT = process.env.PORT || 3000;
+
+http.listen(PORT, () => {
+    console.log(`Servidor corriendo en puerto ${PORT}`);
 });
