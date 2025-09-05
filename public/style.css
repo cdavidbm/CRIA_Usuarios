@@ -1,34 +1,444 @@
-.container {
+/* --- C.R.I.A. Stylesheet --- */
+
+/* 1. Variables & Global Resets
+-------------------------------------------------- */
+:root {
+    --color-bg: #0a0a14;
+    --color-primary: #00ff9d;
+    /* Verde Bioluminiscente */
+    --color-secondary: #00c3ff;
+    /* Azul Eléctrico */
+    --color-accent: #a64dff;
+    /* Púrpura Sintético */
+    --color-text: #e0e0e0;
+    --color-text-dark: #1a1a2e;
+    --font-title: 'Orbitron', sans-serif;
+    --font-body: 'Roboto', sans-serif;
+    --glow-primary: 0 0 5px var(--color-primary), 0 0 10px var(--color-primary), 0 0 20px var(--color-primary);
+    --glow-secondary: 0 0 5px var(--color-secondary), 0 0 10px var(--color-secondary);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    line-height: 1.6;
+    overflow-x: hidden;
+    cursor: none;
+}
+
+/* 2. Interactive Elements (Cursor, Canvas, Blobs)
+-------------------------------------------------- */
+#custom-cursor {
+    position: fixed;
+    width: 25px;
+    height: 25px;
+    border: 2px solid var(--color-primary);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    transition: all 0.1s ease-out;
+    z-index: 9999;
+    backdrop-filter: hue-rotate(120deg);
+}
+
+#custom-cursor.hover {
+    transform: translate(-50%, -50%) scale(1.5);
+    background-color: rgba(0, 255, 157, 0.1);
+}
+
+#particle-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -2;
+}
+
+.blob-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    z-index: -1;
+    filter: blur(80px) opacity(0.6);
+}
+
+.blob {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0.7;
+}
+
+.blob:nth-child(1) {
+    width: 40vmax;
+    height: 40vmax;
+    background-color: var(--color-primary);
+    animation: move 25s infinite alternate;
+}
+
+.blob:nth-child(2) {
+    width: 30vmax;
+    height: 30vmax;
+    background-color: var(--color-secondary);
+    animation: move 30s infinite alternate-reverse;
+}
+
+.blob:nth-child(3) {
+    width: 20vmax;
+    height: 20vmax;
+    background-color: var(--color-accent);
+    animation: move 20s infinite alternate;
+}
+
+@keyframes move {
+    from {
+        transform: translate(10vw, -20vh) rotate(0deg) scale(1);
+    }
+
+    to {
+        transform: translate(-20vw, 30vh) rotate(360deg) scale(1.2);
+    }
+}
+
+/* 3. Layout & Sections
+-------------------------------------------------- */
+header,
+main,
+footer {
+    position: relative;
+    z-index: 1;
+    padding: 1rem;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.hero-section {
+    min-height: 100vh;
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    text-align: center;
+}
+
+.content-section {
+    padding: 4rem 1rem;
+    background: rgba(10, 10, 20, 0.3);
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(0, 255, 157, 0.1);
+    border-radius: 15px;
+    margin-bottom: 2rem;
+}
+
+/* 4. Typography & Content Styling
+-------------------------------------------------- */
+h1,
+h2,
+h3 {
+    font-family: var(--font-title);
+    color: var(--color-primary);
+    text-shadow: var(--glow-primary);
+    margin-bottom: 1rem;
+}
+
+.logo {
+    font-size: clamp(2.5rem, 10vw, 5rem);
+    letter-spacing: 0.5rem;
+    margin-bottom: 0;
+}
+
+.logo span {
+    display: inline-block;
+    animation: grow 0.5s ease-out forwards;
+    animation-delay: calc(var(--i) * 100ms);
+    opacity: 0;
+    transform: scale(0.5);
+}
+
+@keyframes grow {
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.subtitle,
+.tagline,
+.latin-phrase {
+    font-family: var(--font-body);
+    color: var(--color-secondary);
+    text-shadow: var(--glow-secondary);
+}
+
+.latin-phrase {
+    font-style: italic;
+    margin-bottom: 2rem;
+    opacity: 0.8;
+}
+
+.intro-text {
+    font-size: 1.2rem;
+    max-width: 600px;
+    margin: 0 auto 2rem;
+}
+
+/* 5. Forms & Buttons
+-------------------------------------------------- */
+.auth-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2rem;
+    padding: 2rem 0;
+    transition: all 0.5s ease;
+    border-radius: 15px;
 }
 
 .auth-form {
-    padding: 20px;
-    border: 1px solid #ccc;
+    background: rgba(10, 10, 20, 0.5);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 255, 157, 0.2);
+    padding: 1.5rem;
+    border-radius: 10px;
+    width: 300px;
+}
+
+.auth-form h2 {
+    text-align: center;
+}
+
+.auth-form input {
+    width: 100%;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--color-secondary);
     border-radius: 5px;
+    color: var(--color-text);
+    font-family: var(--font-body);
 }
 
-form {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 20px;
+.auth-form input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: var(--glow-primary);
 }
 
-input,
-button {
-    padding: 8px;
+.cta-button,
+.auth-form button {
+    width: 100%;
+    padding: 0.75rem;
+    font-family: var(--font-title);
+    font-size: 1.1rem;
+    color: var(--color-bg);
+    background-color: var(--color-primary);
+    border: none;
+    border-radius: 5px;
+    cursor: none;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
-.controls {
-    position: fixed;
-    top: 20px;
-    left: 20px;
-    z-index: 100;
-    background: white;
+.cta-button {
+    max-width: 400px;
+}
+
+.cta-button:hover,
+.auth-form button:hover {
+    color: var(--color-text);
+    background-color: transparent;
+    border: 1px solid var(--color-primary);
+    box-shadow: var(--glow-primary);
+}
+
+.message {
     padding: 10px;
-    border-radius: 5px;
+    margin-top: 10px;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.success {
+    background-color: #155724;
+    color: #d4edda;
+}
+
+.error {
+    background-color: #721c24;
+    color: #f8d7da;
+}
+
+/* 5.1 Modal Styles
+-------------------------------------------------- */
+.modal-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(10, 10, 20, 0.6);
+    backdrop-filter: blur(10px) saturate(1.5);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease-in-out;
+}
+
+.modal-container.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.modal-container .auth-container {
+    position: relative;
+    /* Para posicionar el botón de cierre */
+    transform: scale(0.95) translateY(20px);
+    transition: transform 0.4s ease-in-out;
+}
+
+.modal-container.visible .auth-container {
+    transform: scale(1) translateY(0);
+}
+
+.modal-close-btn {
+    position: absolute;
+    top: 5px;
+    right: 15px;
+    background: transparent;
+    border: none;
+    font-size: 2.5rem;
+    color: var(--color-secondary);
+    cursor: none;
+    /* Usa el cursor personalizado */
+    transition: transform 0.3s ease, color 0.3s ease;
+}
+
+.modal-close-btn:hover {
+    color: var(--color-primary);
+    transform: rotate(90deg);
+}
+
+/* 6. Specific Sections (Credits, Footer)
+-------------------------------------------------- */
+.credits-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.credit-card {
+    border: 1px solid rgba(0, 195, 255, 0.2);
+    padding: 1.5rem;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.credit-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--color-secondary);
+    box-shadow: var(--glow-secondary);
+}
+
+.credit-card h3 {
+    color: var(--color-secondary);
+    text-shadow: var(--glow-secondary);
+}
+
+.credit-card h4 {
+    color: var(--color-text);
+    font-family: var(--font-body);
+    margin-bottom: 0.5rem;
+}
+
+.social-links a {
+    color: var(--color-primary);
+    text-decoration: none;
+    margin-top: 1rem;
+    display: inline-block;
+}
+
+.footer {
+    text-align: center;
+    padding: 2rem 1rem;
+    border-top: 1px solid rgba(0, 255, 157, 0.2);
+}
+
+.footer-social {
+    margin: 1rem 0;
+}
+
+.footer-social a {
+    color: var(--color-secondary);
+    margin: 0 1rem;
+    text-decoration: none;
+    font-family: var(--font-title);
+    transition: all 0.3s ease;
+}
+
+.footer-social a:hover {
+    color: var(--color-primary);
+    text-shadow: var(--glow-primary);
+}
+
+/* 7. Animations & Responsiveness
+-------------------------------------------------- */
+.anim-scroll {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+}
+
+.anim-scroll.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Delay for hero content */
+.hero-content.visible .tagline {
+    transition-delay: 0.2s;
+}
+
+.hero-content.visible .latin-phrase {
+    transition-delay: 0.4s;
+}
+
+.hero-content.visible .intro-text {
+    transition-delay: 0.6s;
+}
+
+.hero-content.visible .cta-button {
+    transition-delay: 0.8s;
+}
+
+@media (max-width: 768px) {
+    .blob-container {
+        filter: blur(60px) opacity(0.5);
+    }
+
+    .content-section {
+        padding: 2rem 1rem;
+    }
+
+    .logo {
+        letter-spacing: 0.2rem;
+    }
 }
