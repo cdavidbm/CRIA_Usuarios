@@ -8,8 +8,8 @@ function init() {
     scene.background = new THREE.Color(0x333333);
 
     // Configurar cámara
-    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(5, 5, 5);
+    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 0, 4); // Posición más cercana y centrada
     camera.lookAt(0, 0, 0);
 
     // Configurar renderer
@@ -31,6 +31,13 @@ function init() {
 
     // Controles
     controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.screenSpacePanning = true;
+    controls.minDistance = 2;
+    controls.maxDistance = 8;
+    controls.target.set(0, 0, 0);
+    controls.update();
 
     // Cargar modelo
     const loader = new THREE.GLTFLoader();
@@ -46,13 +53,26 @@ function init() {
                     console.log('MorphTargets encontrados:', child.morphTargetDictionary);
                     const morphControls = document.getElementById('morphControls');
 
+                    // Mapeo actualizado con los nombres exactos del modelo
+                    const customNames = {
+                        '🪼 Medusa': 'Chrysaora plocamia',
+                        '🪸 Coral': 'Agaricia fragilis',
+                        '🐙 Pulpo': 'Octopus briareus',
+                        '🌸 Flor': 'Epidendrum secundum',
+                        '🌵 Cactus': 'Miconia squamulosa',
+                        '🌿 Helecho': 'Bidens rubifolia'
+                    };
+
+                    // Para debuggear
+                    console.log('Nombres de morphTargets disponibles:', Object.keys(child.morphTargetDictionary));
+
                     // Crear sliders para cada morphTarget
                     Object.entries(child.morphTargetDictionary).forEach(([name, index]) => {
                         const group = document.createElement('div');
                         group.className = 'slider-group';
 
                         const label = document.createElement('label');
-                        label.textContent = `Forma ${name}:`;
+                        label.textContent = customNames[name] || name; // Si no encuentra el nombre personalizado, usa el original
 
                         const slider = document.createElement('input');
                         slider.type = 'range';
@@ -61,12 +81,19 @@ function init() {
                         slider.step = '0.01';
                         slider.value = child.morphTargetInfluences[index] || 0;
 
+                        // Crear el elemento para mostrar el valor
+                        const valueDisplay = document.createElement('div');
+                        valueDisplay.className = 'knob-label-text';
+                        valueDisplay.textContent = '0.00';
+
                         slider.addEventListener('input', (e) => {
                             child.morphTargetInfluences[index] = parseFloat(e.target.value);
+                            valueDisplay.textContent = parseFloat(e.target.value).toFixed(2);
                         });
 
-                        group.appendChild(label);
                         group.appendChild(slider);
+                        group.appendChild(valueDisplay);
+                        group.appendChild(label);
                         morphControls.appendChild(group);
                     });
                 }
