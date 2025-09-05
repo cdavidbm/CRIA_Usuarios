@@ -14,8 +14,10 @@ function init() {
 
     // Configurar renderer
     renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.getElementById('modelContainer').appendChild(renderer.domElement);
+    const container = document.getElementById('modelContainer');
+    const containerSize = Math.min(container.clientWidth, container.clientHeight);
+    renderer.setSize(containerSize, containerSize);
+    container.appendChild(renderer.domElement);
 
     // Inicializar reloj
     clock = new THREE.Clock();
@@ -103,9 +105,11 @@ function init() {
 }
 
 function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
+    const container = document.getElementById('modelContainer');
+    const containerSize = Math.min(container.clientWidth, container.clientHeight);
+    camera.aspect = 1; // Mantener aspecto cuadrado
     camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(containerSize, containerSize);
 }
 
 function animate() {
