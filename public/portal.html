@@ -410,6 +410,112 @@
                 padding: 12px 18px;
             }
         }
+
+        /* --- Versión Móvil --- */
+        @media (max-width: 768px) {
+            :root {
+                /* La escena 3D ocupará casi todo el ancho de la pantalla */
+                --escena-size: 85vw;
+            }
+
+            body {
+                /* Permitimos el scroll vertical y alineamos todo al inicio */
+                align-items: flex-start;
+                justify-content: flex-start;
+                overflow-y: auto;
+                padding: 20px 0;
+            }
+
+            /* El contenedor principal ahora es un bloque vertical */
+            #controles {
+                width: 95vw;
+                height: auto;
+                border-radius: 24px;
+                flex-direction: column;
+                gap: 20px;
+                padding: 20px 0;
+                overflow: visible;
+            }
+
+            /* Contenedor de la escena 3D */
+            #modelContainer {
+                width: var(--escena-size);
+                height: var(--escena-size);
+                position: relative;
+                z-index: 1;
+            }
+
+            /* El contenedor de los morphs se convierte en una lista vertical */
+            #morphControls {
+                position: relative;
+                width: 90%;
+                height: auto;
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+                pointer-events: auto;
+            }
+
+            /* Cada grupo de slider es un bloque */
+            #morphControls .slider-group {
+                position: static;
+                transform: none !important; /* Sobrescribe el posicionamiento en arco */
+                display: flex;
+                flex-direction: column;
+                align-items: stretch;
+                width: 100%;
+                gap: 8px;
+            }
+
+            #morphControls .slider-group label {
+                text-align: left;
+                font-size: 0.9em;
+                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+                color: rgba(255, 255, 255, 0.9);
+            }
+
+            /* Convertimos las perillas circulares en sliders lineales */
+            #morphControls input[type="range"] {
+                -webkit-appearance: none;
+                appearance: none;
+                width: 100%;
+                height: 8px;
+                border-radius: 4px;
+                /* Sobrescribimos el fondo cónico que se aplica con JS */
+                background: rgba(0, 0, 0, 0.2) !important;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) inset;
+                backdrop-filter: none;
+                cursor: pointer;
+                padding: 0;
+                transition: none;
+            }
+
+            #morphControls input[type="range"]:hover {
+                transform: none;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) inset;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+            }
+
+            /* Ocultamos las etiquetas de texto de las perillas */
+            #morphControls .slider-group .knob-label-text {
+                display: none;
+            }
+
+            /* Unificamos los controles inferiores */
+            #manipulaciones {
+                position: relative;
+                bottom: auto;
+                left: auto;
+                transform: none;
+                width: 90%;
+                padding: 0;
+            }
+
+            #manipulaciones input[type="range"] {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 
