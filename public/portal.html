@@ -226,21 +226,18 @@
             width: var(--knob-size);
             height: var(--knob-size);
             border-radius: 50%;
-            background: conic-gradient(var(--knob-bg-main) 0%,
-                    var(--knob-bg-main) calc(var(--val, 0) * 1%),
-                    var(--knob-bg-secondary) calc(var(--val, 0) * 1%),
-                    var(--knob-bg-secondary) 100%);
             cursor: pointer;
             box-shadow: 0 2px 12px 0 rgba(31, 38, 135, 0.12), 0 1.5px 8px 0 rgba(255, 255, 255, 0.10) inset;
             border: 2px solid rgba(255, 255, 255, 0.25);
             backdrop-filter: blur(4px);
-            transition: box-shadow 0.2s, border 0.2s;
+            transition: all 0.3s ease;
             outline: none;
         }
 
         #morphControls input[type="range"]:hover {
             box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.22), 0 1.5px 8px 0 rgba(255, 255, 255, 0.18) inset;
             border: 2.5px solid rgba(255, 255, 255, 0.38);
+            transform: scale(1.05);
         }
 
         /* Ocultar la bolita del slider/knob */
@@ -477,58 +474,61 @@
     </div>
 
     <script src="portal.js"></script>
-    <script>
-        // Script adicional para mejorar la visualización de knobs
-        document.addEventListener('DOMContentLoaded', function () {
-            // Función para actualizar el indicador visual del knob
-            function updateKnobVisual(slider) {
-                const value = parseFloat(slider.value);
-                const min = parseFloat(slider.min) || 0;
-                const max = parseFloat(slider.max) || 1;
-                const percentage = ((value - min) / (max - min)) * 100;
+</body>
 
-                slider.style.setProperty('--percentage', percentage);
+</html>
+<script>
+    // Script adicional para mejorar la visualización de knobs
+    document.addEventListener('DOMContentLoaded', function () {
+        // Función para actualizar el indicador visual del knob
+        function updateKnobVisual(slider) {
+            const value = parseFloat(slider.value);
+            const min = parseFloat(slider.min) || 0;
+            const max = parseFloat(slider.max) || 1;
+            const percentage = ((value - min) / (max - min)) * 100;
 
-                // Actualizar el valor mostrado
-                let valueSpan = slider.parentElement.querySelector('.knob-value');
-                if (!valueSpan) {
-                    valueSpan = document.createElement('span');
-                    valueSpan.className = 'knob-value';
-                    slider.parentElement.appendChild(valueSpan);
-                }
-                valueSpan.textContent = value.toFixed(2);
+            slider.style.setProperty('--percentage', percentage);
+
+            // Actualizar el valor mostrado
+            let valueSpan = slider.parentElement.querySelector('.knob-value');
+            if (!valueSpan) {
+                valueSpan = document.createElement('span');
+                valueSpan.className = 'knob-value';
+                slider.parentElement.appendChild(valueSpan);
             }
+            valueSpan.textContent = value.toFixed(2);
+        }
 
-            // Observar cambios en el contenedor de morphControls
-            const observer = new MutationObserver(function (mutations) {
-                mutations.forEach(function (mutation) {
-                    mutation.addedNodes.forEach(function (node) {
-                        if (node.nodeType === 1 && node.classList && node.classList.contains('slider-group')) {
-                            const slider = node.querySelector('input[type="range"]');
-                            if (slider) {
-                                // Inicializar visual
-                                updateKnobVisual(slider);
+        // Observar cambios en el contenedor de morphControls
+        const observer = new MutationObserver(function (mutations) {
+            mutations.forEach(function (mutation) {
+                mutation.addedNodes.forEach(function (node) {
+                    if (node.nodeType === 1 && node.classList && node.classList.contains('slider-group')) {
+                        const slider = node.querySelector('input[type="range"]');
+                        if (slider) {
+                            // Inicializar visual
+                            updateKnobVisual(slider);
 
-                                // Actualizar en tiempo real
-                                slider.addEventListener('input', function () {
-                                    updateKnobVisual(this);
-                                });
-                            }
+                            // Actualizar en tiempo real
+                            slider.addEventListener('input', function () {
+                                updateKnobVisual(this);
+                            });
                         }
-                    });
+                    }
                 });
             });
-
-            // Observar el contenedor de morphControls
-            const morphControls = document.getElementById('morphControls');
-            if (morphControls) {
-                observer.observe(morphControls, { childList: true, subtree: true });
-
-                // También inicializar knobs existentes
-                morphControls.querySelectorAll('input[type="range"]').forEach(updateKnobVisual);
-            }
         });
-    </script>
+
+        // Observar el contenedor de morphControls
+        const morphControls = document.getElementById('morphControls');
+        if (morphControls) {
+            observer.observe(morphControls, { childList: true, subtree: true });
+
+            // También inicializar knobs existentes
+            morphControls.querySelectorAll('input[type="range"]').forEach(updateKnobVisual);
+        }
+    });
+</script>
 </body>
 
 </html>

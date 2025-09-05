@@ -72,7 +72,7 @@ function init() {
                         group.className = 'slider-group';
 
                         const label = document.createElement('label');
-                        label.textContent = customNames[name] || name; // Si no encuentra el nombre personalizado, usa el original
+                        label.textContent = customNames[name] || name;
 
                         const slider = document.createElement('input');
                         slider.type = 'range';
@@ -81,18 +81,31 @@ function init() {
                         slider.step = '0.01';
                         slider.value = child.morphTargetInfluences[index] || 0;
 
-                        // Crear el elemento para mostrar el valor
-                        const valueDisplay = document.createElement('div');
-                        valueDisplay.className = 'knob-label-text';
-                        valueDisplay.textContent = '0.00';
-
                         slider.addEventListener('input', (e) => {
-                            child.morphTargetInfluences[index] = parseFloat(e.target.value);
-                            valueDisplay.textContent = parseFloat(e.target.value).toFixed(2);
+                            const value = parseFloat(e.target.value);
+                            child.morphTargetInfluences[index] = value;
+
+                            // Cambiar color del knob según el valor
+                            const hue = value * 120; // Cambia de 0 (rojo) a 120 (verde)
+                            slider.style.background = `conic-gradient(
+                                hsl(${hue}, 70%, 50%) 0%,
+                                hsl(${hue}, 70%, 50%) ${value * 100}%,
+                                hsl(${hue - 60}, 20%, 20%) ${value * 100}%,
+                                hsl(${hue - 60}, 20%, 20%) 100%
+                            )`;
                         });
 
+                        // Establecer color inicial
+                        const initialValue = parseFloat(slider.value);
+                        const initialHue = initialValue * 120;
+                        slider.style.background = `conic-gradient(
+                            hsl(${initialHue}, 70%, 50%) 0%,
+                            hsl(${initialHue}, 70%, 50%) ${initialValue * 100}%,
+                            hsl(${initialHue - 60}, 20%, 20%) ${initialValue * 100}%,
+                            hsl(${initialHue - 60}, 20%, 20%) 100%
+                        )`;
+
                         group.appendChild(slider);
-                        group.appendChild(valueDisplay);
                         group.appendChild(label);
                         morphControls.appendChild(group);
                     });
