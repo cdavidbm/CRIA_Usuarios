@@ -98,10 +98,10 @@ class ModelViewer {
 
     createHelpers() {
         // Grid helper mejorado
-        const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x444444);
-        gridHelper.material.opacity = 0.5;
-        gridHelper.material.transparent = true;
-        this.scene.add(gridHelper);
+        // const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x444444);
+        // gridHelper.material.opacity = 0.5;
+        // gridHelper.material.transparent = true;
+        // this.scene.add(gridHelper);
 
         // Plano invisible para recibir sombras
         const planeGeometry = new THREE.PlaneGeometry(50, 50);
@@ -301,11 +301,16 @@ class ModelViewer {
             );
         }
 
-        // Agregar identificador único
+        // Agregar identificador único y datos de animación
         model.userData = {
             id: Date.now() + Math.random(),
             createdAt: Date.now(),
-            originalData: modelData
+            originalData: modelData,
+            velocity: new THREE.Vector3(
+                (Math.random() - 0.5) * 0.8, // Velocidad X
+                (Math.random() - 0.5) * 0.3, // Velocidad Y
+                (Math.random() - 0.5) * 0.8  // Velocidad Z
+            )
         };
 
         this.scene.add(model);
@@ -403,15 +408,29 @@ class ModelViewer {
         requestAnimationFrame(() => this.animate());
 
         const delta = this.clock.getDelta();
+        const elapsedTime = this.clock.getElapsedTime();
+
+        // Límites del área de movimiento
+        const bounds = { x: 10, y: 6, z: 10 };
+
+        // Manejar colisiones entre modelos
+        this.handleCollisions();
 
         // Animar modelos
-        this.models.forEach((model, index) => {
-            if (model) {
-                // Rotación suave con variación por modelo
-                model.rotation.y += (0.003 + index * 0.001);
+        this.models.forEach((model) => {
+            if (model && model.userData.velocity) {
+                // 1. Actualizar posición con la velocidad
+                model.position.add(model.userData.velocity.clone().multiplyScalar(delta * 2)); // Aumentamos un poco la velocidad general
 
-                // Movimiento sutil hacia arriba y abajo
-                model.position.y += Math.sin(this.clock.elapsedTime + index) * 0.001;
+                // 2. Rotación suave y continua
+                model.rotation.y += 0.005;
+                model.rotation.x += Math.sin(elapsedTime + model.userData.id) * 0.002;
+                model.rotation.z += Math.cos(elapsedTime + model.userData.id) * 0.002;
+
+                // 3. Rebotar en los límites del escenario
+                if (Math.abs(model.position.x) > bounds.x) model.userData.velocity.x *= -1;
+                if (model.position.y > bounds.y || model.position.y < 0) model.userData.velocity.y *= -1;
+                if (Math.abs(model.position.z) > bounds.z) model.userData.velocity.z *= -1;
             }
         });
 
@@ -422,6 +441,56 @@ class ModelViewer {
 
         // Render
         this.renderer.render(this.scene, this.camera);
+    }
+
+    handleCollisions() {
+        for (let i = 0; i < this.models.length; i++) {
+            for (let j = i + 1; j < this.models.length; j++) {
+                const modelA = this.models[i];
+                const modelB = this.models[j];
+
+                // Usamos la escala como una aproximación del radio para la colisión
+                const radiusA = modelA.scale.x * 0.7;
+                const radiusB = modelB.scale.x * 0.7;
+                const distance = modelA.position.distanceTo(modelB.position);
+
+                if (distance < radiusA + radiusB) {
+                    // --- Colisión detectada ---
+
+                    // 1. Calcular normal y vector tangente
+                    const collisionNormal = modelB.position.clone().sub(modelA.position).normalize();
+
+                    // 2. Separar los modelos para evitar que se atasquen
+                    const overlap = (radiusA + radiusB) - distance;
+                    modelA.position.add(collisionNormal.clone().multiplyScalar(-overlap / 2));
+                    modelB.position.add(collisionNormal.clone().multiplyScalar(overlap / 2));
+
+                    // 3. Calcular la respuesta de la colisión (rebote elástico)
+                    const vA = modelA.userData.velocity;
+                    const vB = modelB.userData.velocity;
+
+                    // Proyección de la velocidad de A sobre la normal
+                    const vA_proj = collisionNormal.clone().multiplyScalar(vA.dot(collisionNormal));
+                    // Proyección de la velocidad de B sobre la normal
+                    const vB_proj = collisionNormal.clone().multiplyScalar(vB.dot(collisionNormal));
+
+                    // Si las proyecciones se alejan, no hacer nada (ya se están separando)
+                    const relativeVelocity = vA.clone().sub(vB);
+                    const speed = relativeVelocity.dot(collisionNormal);
+                    if (speed < 0) {
+                        continue;
+                    }
+
+                    // Intercambiar las proyecciones de velocidad para simular el rebote
+                    const new_vA = vA.clone().sub(vA_proj).add(vB_proj);
+                    const new_vB = vB.clone().sub(vB_proj).add(vA_proj);
+
+                    // Aplicar las nuevas velocidades
+                    modelA.userData.velocity.copy(new_vA);
+                    modelB.userData.velocity.copy(new_vB);
+                }
+            }
+        }
     }
 
     showNotification(message, type = 'info') {

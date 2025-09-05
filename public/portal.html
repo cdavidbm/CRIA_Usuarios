@@ -39,7 +39,7 @@
             font-family: 'Inter', Arial, Helvetica, sans-serif;
             font-size: 16px;
             color: #1a2233;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background: linear-gradient(135deg, #112fb4 0%, #a2c4eb 50%, #567386 100%);
             background-size: 400% 400%;
             animation: gradientShift 15s ease infinite;
             min-height: 100vh;
@@ -278,8 +278,6 @@
 
         /* Contenedor de manipulaciones abajo de la escena */
         #manipulaciones {
-            width: 60%;
-            max-width: 480px;
             position: absolute;
             left: 50%;
             transform: translateX(-50%);
@@ -288,40 +286,22 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            border-radius: 18px;
-            box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.10);
-            padding: 18px 24px 14px 24px;
-            backdrop-filter: blur(10px) saturate(1.1);
-            -webkit-backdrop-filter: blur(10px) saturate(1.1);
-            border: 1.5px solid rgba(255, 255, 255, 0.22);
-            background: rgba(255, 255, 255, 0.05);
+            gap: 8px;
+            padding: 8px;
         }
 
         #manipulaciones .slider-group {
             width: 100%;
-            margin-bottom: 15px;
+            margin-bottom: 4px;
             text-align: center;
-            background: transparent;
-            border: none;
-            padding: 0;
-            border-radius: 0;
-            backdrop-filter: none;
-            box-shadow: none;
         }
 
         #manipulaciones .slider-group label {
-            font-size: 0.95em;
+            font-size: 0.85em;
             font-weight: 600;
-            color: #1a2233;
-            margin-bottom: 8px;
-            display: block;
-            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
-            background: transparent;
-            border: none;
-            padding: 0;
-            border-radius: 0;
-            backdrop-filter: none;
-            box-shadow: none;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 4px;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
         }
 
         #manipulaciones input[type="range"] {
@@ -329,12 +309,23 @@
             height: 6px;
             -webkit-appearance: none;
             appearance: none;
-            background: linear-gradient(90deg, var(--knob-bg-main) 0%, var(--knob-bg-secondary) 100%);
             border-radius: 3px;
             outline: none;
             border: 1px solid rgba(255, 255, 255, 0.2);
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) inset;
             cursor: pointer;
+        }
+
+        /* Estilo específico para el slider de color */
+        #modelColor {
+            background: linear-gradient(to right,
+                    hsl(0, 70%, 50%),
+                    hsl(60, 70%, 50%),
+                    hsl(120, 70%, 50%),
+                    hsl(180, 70%, 50%),
+                    hsl(240, 70%, 50%),
+                    hsl(300, 70%, 50%),
+                    hsl(360, 70%, 50%));
         }
 
         #manipulaciones input[type="range"]::-webkit-slider-thumb {
@@ -355,24 +346,6 @@
             box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
         }
 
-        #manipulaciones input[type="color"] {
-            width: 80%;
-            height: 40px;
-            border: none;
-            border-radius: 8px;
-            background: transparent;
-            cursor: pointer;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            transition: all 0.2s ease;
-        }
-
-        #manipulaciones input[type="color"]:hover {
-            transform: scale(1.02);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-            border: 2px solid rgba(255, 255, 255, 0.4);
-        }
-
         .value-display {
             display: inline-block;
             background: rgba(255, 255, 255, 0.9);
@@ -387,15 +360,15 @@
         }
 
         #sendModel {
-            margin: 8px;
-            padding: 12px 24px;
+            margin: 4px;
+            padding: 8px 16px;
             border-radius: 12px;
             border: none;
-            background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%);
+            background: linear-gradient(90deg, #4b54a5 0%, #577cf5 100%);
             color: #fff;
             font-weight: 700;
             font-size: 1em;
-            box-shadow: 0 8px 24px rgba(240, 147, 251, 0.3);
+            box-shadow: 0 8px 24px rgba(147, 149, 251, 0.3);
             cursor: pointer;
             transition: all 0.3s ease;
             text-transform: uppercase;
@@ -433,8 +406,7 @@
             }
 
             #manipulaciones {
-                width: 80%;
-                bottom: 20px;
+                bottom: 10px;
                 padding: 12px 18px;
             }
         }
@@ -464,7 +436,7 @@
 
             <div class="slider-group">
                 <label for="modelColor">Color</label>
-                <input type="color" id="modelColor" value="#ff0000">
+                <input type="range" id="modelColor" min="0" max="360" step="1" value="0">
             </div>
 
             <button id="sendModel">

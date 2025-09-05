@@ -172,7 +172,8 @@ document.getElementById('modelSize').addEventListener('input', (e) => {
 
 document.getElementById('modelColor').addEventListener('input', (e) => {
     if (model) {
-        const color = new THREE.Color(e.target.value);
+        const hue = parseInt(e.target.value);
+        const color = new THREE.Color(`hsl(${hue}, 70%, 50%)`);
         model.traverse((child) => {
             if (child.isMesh) {
                 child.material.color = color;
