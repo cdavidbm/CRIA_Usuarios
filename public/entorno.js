@@ -299,11 +299,6 @@ class ModelViewer {
         const position = this.findOptimalPosition();
         model.position.copy(position);
 
-        // Aplicar escala si se especifica
-        if (modelData.size) {
-            model.scale.setScalar(parseFloat(modelData.size));
-        }
-
         // Aplicar rotación si se especifica
         if (modelData.rotation) {
             model.rotation.set(
@@ -313,7 +308,6 @@ class ModelViewer {
             );
         }
 
-        // Modificador de velocidad basado en el tamaño (más pequeño = más rápido)
         const size = parseFloat(modelData.size || 1.0);
         const speedFactor = 1 / Math.sqrt(size);
 
@@ -337,16 +331,21 @@ class ModelViewer {
         }
 
         // Agregar identificador único y datos de animación
+        const maxLifespan = 30; // segundos
         model.userData = {
             id: Date.now() + Math.random(),
             createdAt: Date.now(),
             originalData: modelData,
+            originalSize: size,
             dominantShape: dominantShape,
+            lifespan: maxLifespan,
+            maxLifespan: maxLifespan,
             velocity: new THREE.Vector3(
                 (Math.random() - 0.5) * 0.8, // Velocidad X
                 (Math.random() - 0.5) * 0.3, // Velocidad Y
                 (Math.random() - 0.5) * 0.8  // Velocidad Z
-            ).multiplyScalar(speedFactor)
+            ).multiplyScalar(speedFactor),
+            acceleration: new THREE.Vector3()
         };
 
         this.scene.add(model);
@@ -449,61 +448,140 @@ class ModelViewer {
         // Límites del área de movimiento
         const bounds = { x: 10, y: 6, z: 10 };
 
-        // Manejar colisiones entre modelos
-        this.handleCollisions();
+        // --- Lógica de Comportamiento y Animación ---
 
-        // Animar modelos
-        this.models.forEach((model) => {
-            if (model && model.userData.velocity) {
-                // 1. Actualizar posición con la velocidad
-                model.position.add(model.userData.velocity.clone().multiplyScalar(delta * 2)); // Aumentamos un poco la velocidad general
+        // Parámetros del comportamiento de agrupación (flocking)
+        const perceptionRadius = 5; // Radio de percepción para encontrar vecinos
+        const separationDistance = 1.5; // Distancia mínima para empezar a separar
+        const colorAffinityThreshold = 45; // Umbral de HUE (de 360) para considerar colores "similares"
+        const cohesionForce = 0.0005;
+        const separationForce = 0.005;
+        const maxSpeed = 1.5;
+        const minSpeed = 0.2;
 
-                // 2. Rotación personalizada según la forma dominante
-                const shape = model.userData.dominantShape || 'default';
-                switch (shape) {
-                    case '🪼 Medusa':
-                        // Rotación lenta y ondulante, como una medusa
-                        model.rotation.y += delta * 0.1;
-                        model.rotation.x = Math.sin(elapsedTime * 0.5 + model.userData.id) * 0.2;
-                        model.rotation.z = Math.cos(elapsedTime * 0.5 + model.userData.id) * 0.2;
-                        break;
-                    case '🪸 Coral':
-                        // Casi estático, rotación muy lenta
-                        model.rotation.y += delta * 0.05;
-                        break;
-                    case '🐙 Pulpo':
-                        // Movimiento más complejo y orgánico
-                        model.rotation.y += Math.sin(elapsedTime * 0.8 + model.userData.id) * 0.005;
-                        model.rotation.x += Math.cos(elapsedTime * 0.6 + model.userData.id) * 0.008;
-                        model.rotation.z += Math.sin(elapsedTime * 0.7 + model.userData.id) * 0.006;
-                        break;
-                    case '🌸 Flor':
-                        // Gira sobre su eje Y, como buscando el sol
-                        model.rotation.y += delta * 0.25;
-                        break;
-                    case '🌵 Cactus':
-                        // Rotación más rígida y espinosa
-                        model.rotation.y += delta * 0.1;
-                        model.rotation.x = Math.sin(elapsedTime * 0.2 + model.userData.id) * 0.05;
-                        break;
-                    case '🌿 Helecho':
-                        // Un suave balanceo
-                        model.rotation.z = Math.sin(elapsedTime * 0.7 + model.userData.id) * 0.3;
-                        break;
-                    default:
-                        // Rotación suave por defecto
-                        model.rotation.y += 0.005;
-                        model.rotation.x += Math.sin(elapsedTime + model.userData.id) * 0.002;
-                        model.rotation.z += Math.cos(elapsedTime + model.userData.id) * 0.002;
-                        break;
+        // 1. Calcular aceleraciones basadas en el comportamiento
+        this.models.forEach(model => {
+            model.userData.acceleration.set(0, 0, 0);
+            const centerOfMass = new THREE.Vector3();
+            let neighborCount = 0;
+            const separationVector = new THREE.Vector3();
+
+            this.models.forEach(other => {
+                if (model === other) return;
+
+                const distance = model.position.distanceTo(other.position);
+                if (distance < perceptionRadius) {
+                    // Regla de Cohesión (Atracción por color)
+                    const myHue = parseInt(model.userData.originalData.color);
+                    const otherHue = parseInt(other.userData.originalData.color);
+                    const hueDifference = Math.min(Math.abs(myHue - otherHue), 360 - Math.abs(myHue - otherHue));
+
+                    if (hueDifference < colorAffinityThreshold) {
+                        centerOfMass.add(other.position);
+                        neighborCount++;
+                    }
+
+                    // Regla de Separación (Evitar colisiones)
+                    if (distance < separationDistance) {
+                        const diff = new THREE.Vector3().subVectors(model.position, other.position);
+                        diff.divideScalar(distance * distance); // La fuerza es inversamente proporcional al cuadrado de la distancia
+                        separationVector.add(diff);
+                    }
                 }
+            });
 
-                // 3. Rebotar en los límites del escenario
-                if (Math.abs(model.position.x) > bounds.x) model.userData.velocity.x *= -1;
-                if (model.position.y > bounds.y || model.position.y < 0) model.userData.velocity.y *= -1;
-                if (Math.abs(model.position.z) > bounds.z) model.userData.velocity.z *= -1;
+            if (neighborCount > 0) {
+                centerOfMass.divideScalar(neighborCount);
+                const cohesionVector = new THREE.Vector3().subVectors(centerOfMass, model.position);
+                cohesionVector.normalize().multiplyScalar(cohesionForce);
+                model.userData.acceleration.add(cohesionVector);
+            }
+
+            separationVector.multiplyScalar(separationForce);
+            model.userData.acceleration.add(separationVector);
+        });
+
+        // 2. Aplicar físicas, ciclo de vida y rotaciones
+        const modelsToRemove = [];
+        this.models.forEach(model => {
+            if (!model.userData.velocity) return;
+
+            // -- Ciclo de Vida --
+            model.userData.lifespan -= delta;
+            if (model.userData.lifespan <= 0) {
+                modelsToRemove.push(model);
+            }
+
+            // Escalar según el tiempo de vida restante
+            const lifeRatio = Math.max(0, model.userData.lifespan / model.userData.maxLifespan);
+            const scale = model.userData.originalSize * lifeRatio;
+            model.scale.setScalar(scale);
+
+
+            // -- Físicas --
+            // Actualizar velocidad con la aceleración
+            model.userData.velocity.add(model.userData.acceleration);
+            model.userData.velocity.clampLength(minSpeed, maxSpeed); // Limitar velocidad
+
+            // Actualizar posición
+            model.position.add(model.userData.velocity.clone().multiplyScalar(delta));
+
+            // Rebotar en los límites del escenario
+            if (Math.abs(model.position.x) > bounds.x) model.userData.velocity.x *= -1;
+            if (model.position.y > bounds.y || model.position.y < 0) {
+                model.position.y = Math.max(0, Math.min(model.position.y, bounds.y)); // Clamp position
+                model.userData.velocity.y *= -1;
+            }
+            if (Math.abs(model.position.z) > bounds.z) model.userData.velocity.z *= -1;
+
+            // -- Rotación --
+            const shape = model.userData.dominantShape || 'default';
+            switch (shape) {
+                case '🪼 Medusa':
+                    model.rotation.y += delta * 0.1;
+                    model.rotation.x = Math.sin(elapsedTime * 0.5 + model.userData.id) * 0.2;
+                    model.rotation.z = Math.cos(elapsedTime * 0.5 + model.userData.id) * 0.2;
+                    break;
+                case '🪸 Coral':
+                    model.rotation.y += delta * 0.05;
+                    break;
+                case '🐙 Pulpo':
+                    model.rotation.y += Math.sin(elapsedTime * 0.8 + model.userData.id) * 0.005;
+                    model.rotation.x += Math.cos(elapsedTime * 0.6 + model.userData.id) * 0.008;
+                    model.rotation.z += Math.sin(elapsedTime * 0.7 + model.userData.id) * 0.006;
+                    break;
+                case '🌸 Flor':
+                    model.rotation.y += delta * 0.25;
+                    break;
+                case '🌵 Cactus':
+                    model.rotation.y += delta * 0.1;
+                    model.rotation.x = Math.sin(elapsedTime * 0.2 + model.userData.id) * 0.05;
+                    break;
+                case '🌿 Helecho':
+                    model.rotation.z = Math.sin(elapsedTime * 0.7 + model.userData.id) * 0.3;
+                    break;
+                default:
+                    model.rotation.y += 0.005;
+                    model.rotation.x += Math.sin(elapsedTime + model.userData.id) * 0.002;
+                    model.rotation.z += Math.cos(elapsedTime + model.userData.id) * 0.002;
+                    break;
             }
         });
+
+        // 3. Eliminar modelos "muertos"
+        if (modelsToRemove.length > 0) {
+            modelsToRemove.forEach(model => {
+                this.scene.remove(model);
+                this.disposeModel(model);
+                const index = this.models.indexOf(model);
+                if (index > -1) {
+                    this.models.splice(index, 1);
+                }
+            });
+        }
+
+        // La colisión física se maneja después de la actualización de posición
+        this.handleCollisions();
 
         // Actualizar controles
         if (this.controls) {
@@ -559,6 +637,14 @@ class ModelViewer {
                     // Aplicar las nuevas velocidades
                     modelA.userData.velocity.copy(new_vA);
                     modelB.userData.velocity.copy(new_vB);
+
+                    // "Alimentación": al chocar, resetean su ciclo de vida
+                    if (modelA.userData.lifespan) {
+                        modelA.userData.lifespan = modelA.userData.maxLifespan;
+                    }
+                    if (modelB.userData.lifespan) {
+                        modelB.userData.lifespan = modelB.userData.maxLifespan;
+                    }
                 }
             }
         }
