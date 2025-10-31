@@ -103,3 +103,4 @@ typings/
 
 # Backup directory
 bkp/
+.DS_Store
