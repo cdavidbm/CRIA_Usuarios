@@ -50,7 +50,7 @@ class ModelViewer {
     createCamera() {
         const aspect = window.innerWidth / window.innerHeight;
         this.camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 1000);
-        this.camera.position.set(8, 6, 8);
+        this.camera.position.set(15, 12, 15);
         this.camera.lookAt(0, 0, 0);
     }
 
@@ -121,8 +121,7 @@ class ModelViewer {
 
     createControls() {
         this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
-        this.controls.enableDamping = true;
-        this.controls.dampingFactor = 0.05;
+        this.controls.enableDamping = false; // Desactivar para un control preciso y sin inercia
         this.controls.screenSpacePanning = false;
         this.controls.minDistance = 3;
         this.controls.maxDistance = 30;
@@ -331,7 +330,7 @@ class ModelViewer {
         }
 
         // Agregar identificador único y datos de animación
-        const maxLifespan = 30; // segundos
+        const maxLifespan = 180; // 3 minutos
         model.userData = {
             id: Date.now() + Math.random(),
             createdAt: Date.now(),
@@ -499,6 +498,15 @@ class ModelViewer {
 
             separationVector.multiplyScalar(separationForce);
             model.userData.acceleration.add(separationVector);
+
+            // Regla de Contención para mantener a las criaturas dentro del área
+            const containmentForce = 0.01;
+            if (model.position.x > bounds.x) model.userData.acceleration.x -= containmentForce;
+            if (model.position.x < -bounds.x) model.userData.acceleration.x += containmentForce;
+            if (model.position.y > bounds.y) model.userData.acceleration.y -= containmentForce;
+            if (model.position.y < 0.5) model.userData.acceleration.y += containmentForce * 2; // Empujar más fuerte desde el "suelo"
+            if (model.position.z > bounds.z) model.userData.acceleration.z -= containmentForce;
+            if (model.position.z < -bounds.z) model.userData.acceleration.z += containmentForce;
         });
 
         // 2. Aplicar físicas, ciclo de vida y rotaciones
@@ -525,14 +533,6 @@ class ModelViewer {
 
             // Actualizar posición
             model.position.add(model.userData.velocity.clone().multiplyScalar(delta));
-
-            // Rebotar en los límites del escenario
-            if (Math.abs(model.position.x) > bounds.x) model.userData.velocity.x *= -1;
-            if (model.position.y > bounds.y || model.position.y < 0) {
-                model.position.y = Math.max(0, Math.min(model.position.y, bounds.y)); // Clamp position
-                model.userData.velocity.y *= -1;
-            }
-            if (Math.abs(model.position.z) > bounds.z) model.userData.velocity.z *= -1;
 
             // -- Rotación --
             const shape = model.userData.dominantShape || 'default';
