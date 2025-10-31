@@ -8,13 +8,13 @@ function init() {
     scene.background = new THREE.Color(0x333333);
 
     // Configurar cámara
-    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const container = document.getElementById('modelContainer');
+    camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
     camera.position.set(0, 0, 4); // Posición más cercana y centrada
     camera.lookAt(0, 0, 0);
 
     // Configurar renderer
     renderer = new THREE.WebGLRenderer({ antialias: true });
-    const container = document.getElementById('modelContainer');
     const containerSize = Math.min(container.clientWidth, container.clientHeight);
     renderer.setSize(containerSize, containerSize);
     container.appendChild(renderer.domElement);
