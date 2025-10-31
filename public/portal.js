@@ -47,68 +47,77 @@ function init() {
             model = gltf.scene;
             scene.add(model);
 
-            // Buscar morphTargets
+            // Cargar MatCap y aplicar material
+            const textureLoader = new THREE.TextureLoader();
+            const matcapTexture = textureLoader.load('/assets/matcap_iridescent.png');
+            const matcapMaterial = new THREE.MeshMatcapMaterial({ matcap: matcapTexture });
+
+            // Buscar morphTargets y aplicar material
             model.traverse((child) => {
-                if (child.isMesh && child.morphTargetDictionary) {
-                    console.log('MorphTargets encontrados:', child.morphTargetDictionary);
-                    const morphControls = document.getElementById('morphControls');
+                if (child.isMesh) {
+                    child.material = matcapMaterial;
 
-                    // Mapeo actualizado con los nombres exactos del modelo
-                    const customNames = {
-                        '🪼 Medusa': 'Chrysaora plocamia',
-                        '🪸 Coral': 'Agaricia fragilis',
-                        '🐙 Pulpo': 'Octopus briareus',
-                        '🌸 Flor': 'Epidendrum secundum',
-                        '🌵 Cactus': 'Miconia squamulosa',
-                        '🌿 Helecho': 'Bidens rubifolia'
-                    };
+                    if (child.morphTargetDictionary) {
+                        console.log('MorphTargets encontrados:', child.morphTargetDictionary);
+                        const morphControls = document.getElementById('morphControls');
 
-                    // Para debuggear
-                    console.log('Nombres de morphTargets disponibles:', Object.keys(child.morphTargetDictionary));
+                        // Mapeo actualizado con los nombres exactos del modelo
+                        const customNames = {
+                            '🪼 Medusa': 'Chrysaora plocamia',
+                            '🪸 Coral': 'Agaricia fragilis',
+                            '🐙 Pulpo': 'Octopus briareus',
+                            '🌸 Flor': 'Epidendrum secundum',
+                            '🌵 Cactus': 'Miconia squamulosa',
+                            '🌿 Helecho': 'Bidens rubifolia'
+                        };
 
-                    // Crear sliders para cada morphTarget
-                    Object.entries(child.morphTargetDictionary).forEach(([name, index]) => {
-                        const group = document.createElement('div');
-                        group.className = 'slider-group';
+                        // Para debuggear
+                        console.log('Nombres de morphTargets disponibles:', Object.keys(child.morphTargetDictionary));
 
-                        const label = document.createElement('label');
-                        label.textContent = customNames[name] || name;
+                        // Crear sliders para cada morphTarget
+                        Object.entries(child.morphTargetDictionary).forEach(([name, index]) => {
+                            const group = document.createElement('div');
+                            group.className = 'slider-group';
 
-                        const slider = document.createElement('input');
-                        slider.type = 'range';
-                        slider.min = '0';
-                        slider.max = '1';
-                        slider.step = '0.01';
-                        slider.value = child.morphTargetInfluences[index] || 0;
+                            const label = document.createElement('label');
+                            label.textContent = customNames[name] || name;
 
-                        slider.addEventListener('input', (e) => {
-                            const value = parseFloat(e.target.value);
-                            child.morphTargetInfluences[index] = value;
+                            const slider = document.createElement('input');
+                            slider.type = 'range';
+                            slider.min = '0';
+                            slider.max = '1';
+                            slider.step = '0.01';
+                            slider.value = child.morphTargetInfluences[index] || 0;
 
-                            // Cambiar color del knob según el valor
-                            const hue = value * 120; // Cambia de 0 (rojo) a 120 (verde)
+                            slider.addEventListener('input', (e) => {
+                                const value = parseFloat(e.target.value);
+                                child.morphTargetInfluences[index] = value;
+
+                                // Cambiar color del knob según el valor
+                                const hue = value * 120; // Cambia de 0 (rojo) a 120 (verde)
+                                slider.style.background = `conic-gradient(
+                                    hsl(${hue}, 70%, 50%) 0%,
+                                    hsl(${hue}, 70%, 50%) ${value * 100}%,
+                                    hsl(${hue - 60}, 20%, 20%) ${value * 100}%,
+                                    hsl(${hue - 60}, 20%, 20%) 100%
+                                )`;
+                            });
+
+                            // Establecer color inicial
+                            const initialValue = parseFloat(slider.value);
+                            const initialHue = initialValue * 120;
                             slider.style.background = `conic-gradient(
-                                hsl(${hue}, 70%, 50%) 0%,
-                                hsl(${hue}, 70%, 50%) ${value * 100}%,
-                                hsl(${hue - 60}, 20%, 20%) ${value * 100}%,
-                                hsl(${hue - 60}, 20%, 20%) 100%
+                                hsl(${initialHue}, 70%, 50%) 0%,
+                                hsl(${initialHue}, 70%, 50%) ${initialValue * 100}%,
+                                hsl(${initialHue - 60}, 20%, 20%) ${initialValue * 100}%,
+                                hsl(${initialHue - 60}, 20%, 20%) 100%
                             )`;
+
+                            group.appendChild(slider);
+                            group.appendChild(label);
+                            morphControls.appendChild(group);
                         });
-
-                        // Establecer color inicial
-                        const initialValue = parseFloat(slider.value);
-                        const initialHue = initialValue * 120;
-                        slider.style.background = `conic-gradient(
-                            hsl(${initialHue}, 70%, 50%) 0%,
-                            hsl(${initialHue}, 70%, 50%) ${initialValue * 100}%,
-                            hsl(${initialHue - 60}, 20%, 20%) ${initialValue * 100}%,
-                            hsl(${initialHue - 60}, 20%, 20%) 100%
-                        )`;
-
-                        group.appendChild(slider);
-                        group.appendChild(label);
-                        morphControls.appendChild(group);
-                    });
+                    }
                 }
             });
 
