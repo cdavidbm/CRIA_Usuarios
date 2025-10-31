@@ -507,6 +507,15 @@ class ModelViewer {
             if (model.position.y < 0.5) model.userData.acceleration.y += containmentForce * 2; // Empujar más fuerte desde el "suelo"
             if (model.position.z > bounds.z) model.userData.acceleration.z -= containmentForce;
             if (model.position.z < -bounds.z) model.userData.acceleration.z += containmentForce;
+
+            // Regla de "Curiosidad" (Wander) para que no se queden quietas
+            const wanderStrength = 0.0002;
+            const wanderForce = new THREE.Vector3(
+                (Math.random() - 0.5) * wanderStrength,
+                (Math.random() - 0.5) * wanderStrength,
+                (Math.random() - 0.5) * wanderStrength
+            );
+            model.userData.acceleration.add(wanderForce);
         });
 
         // 2. Aplicar físicas, ciclo de vida y rotaciones
@@ -599,8 +608,8 @@ class ModelViewer {
                 const modelB = this.models[j];
 
                 // Usamos la escala como una aproximación del radio para la colisión
-                const radiusA = modelA.scale.x * 0.7;
-                const radiusB = modelB.scale.x * 0.7;
+                const radiusA = modelA.scale.x * 0.9; // Aumentado de 0.7 para una colisión más "sólida"
+                const radiusB = modelB.scale.x * 0.9; // Aumentado de 0.7 para una colisión más "sólida"
                 const distance = modelA.position.distanceTo(modelB.position);
 
                 if (distance < radiusA + radiusB) {
