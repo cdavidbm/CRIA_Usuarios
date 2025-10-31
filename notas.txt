@@ -1,0 +1,31 @@
+Físicas Basadas en Atributos (Simple)
+  Son cambios que afectan el comportamiento individual de cada criatura basándose en sus características.
+   * Velocidad según el Tamaño:
+       * Concepto: Las criaturas más grandes son más lentas y pesadas, mientras que las más pequeñas son ágiles y rápidas.
+       * Efecto Visual: Veríamos "gigantes" moviéndose con calma por el espacio, mientras que las "crías" pequeñas zumban a su alrededor.
+   * Rotación según la Forma:
+       * Concepto: Dependiendo de la forma dominante (la que tenga más influencia en el morph), la criatura rota de una manera particular.
+       * Efecto Visual: Las formas tipo "Medusa" podrían tener una rotación suave y ondulante, mientras que las formas tipo "Cactus" podrían tener una rotación más errática y puntiaguda.
+
+
+Comportamientos Sociales (Intermedio)
+  Estas dinámicas se basan en cómo una criatura reacciona a la presencia de otras.
+   * Agrupación por Color (Flocking):
+       * Concepto: Las criaturas sienten "afinidad" por otras con colores similares. Tienden a moverse juntas, formando cardúmenes o bandadas de colores parecidos.
+       * Efecto Visual: El caos inicial se organizaría en grupos de criaturas rojas, azules, verdes, etc., que nadan juntas por el entorno.
+   * Afinidad/Repulsión entre Formas:
+       * Concepto: Ciertas formas se atraen y otras se repelen. Por ejemplo:
+           * Afinidad: Las formas de "Pulpo" se sienten atraídas por las de "Coral".
+           * Repulsión: Las formas de "Cactus" repelen a todas las demás para mantener su espacio.
+       * Efecto Visual: Veríamos pequeños "biomas" donde los corales y pulpos se agrupan, mientras que los cactus viajan solos.
+
+
+Ciclo de Vida y Ecosistema (Avanzado)
+  Estas ideas simulan un ciclo de vida, haciendo el ecosistema más dinámico y cambiante.
+   * "Alimentación" por Colisión:
+       * Concepto: Cada criatura tiene un "tiempo de vida" que disminuye lentamente, haciendo que se encoja o se desvanezca. Al colisionar con otra criatura, ambas recuperan su energía y su
+         tamaño/brillo original.
+       * Efecto Visual: Las criaturas que no interactúan se desvanecerían, incentivando un entorno donde las colisiones son necesarias para la "supervivencia". El ecosistema se sentiría más vivo y en constante cambio.
+   * Jerarquía por Tamaño (Depredador/Presa simple):
+       * Concepto: Las criaturas más grandes "intimidan" a las más pequeñas. Cuando una criatura grande se acerca a una pequeña, la pequeña se aleja rápidamente.
+       * Efecto Visual: Veríamos a las criaturas pequeñas esquivando y huyendo de las grandes, creando una dinámica de persecución y evasión constante.

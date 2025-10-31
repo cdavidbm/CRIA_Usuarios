@@ -313,16 +313,40 @@ class ModelViewer {
             );
         }
 
+        // Modificador de velocidad basado en el tamaño (más pequeño = más rápido)
+        const size = parseFloat(modelData.size || 1.0);
+        const speedFactor = 1 / Math.sqrt(size);
+
+        // Determinar la "personalidad" de la forma según el morph dominante
+        let dominantShape = 'default';
+        let maxInfluence = 0.1; // Umbral mínimo para considerar una forma como dominante
+
+        if (modelData.morphTargets) {
+            const meshName = Object.keys(modelData.morphTargets)[0];
+            if (meshName) {
+                const morphs = modelData.morphTargets[meshName];
+                if (morphs && morphs.influences && morphs.dictionary) {
+                    morphs.influences.forEach((influence, index) => {
+                        if (influence > maxInfluence) {
+                            maxInfluence = influence;
+                            dominantShape = Object.keys(morphs.dictionary).find(key => morphs.dictionary[key] === index) || 'default';
+                        }
+                    });
+                }
+            }
+        }
+
         // Agregar identificador único y datos de animación
         model.userData = {
             id: Date.now() + Math.random(),
             createdAt: Date.now(),
             originalData: modelData,
+            dominantShape: dominantShape,
             velocity: new THREE.Vector3(
                 (Math.random() - 0.5) * 0.8, // Velocidad X
                 (Math.random() - 0.5) * 0.3, // Velocidad Y
                 (Math.random() - 0.5) * 0.8  // Velocidad Z
-            )
+            ).multiplyScalar(speedFactor)
         };
 
         this.scene.add(model);
@@ -434,10 +458,45 @@ class ModelViewer {
                 // 1. Actualizar posición con la velocidad
                 model.position.add(model.userData.velocity.clone().multiplyScalar(delta * 2)); // Aumentamos un poco la velocidad general
 
-                // 2. Rotación suave y continua
-                model.rotation.y += 0.005;
-                model.rotation.x += Math.sin(elapsedTime + model.userData.id) * 0.002;
-                model.rotation.z += Math.cos(elapsedTime + model.userData.id) * 0.002;
+                // 2. Rotación personalizada según la forma dominante
+                const shape = model.userData.dominantShape || 'default';
+                switch (shape) {
+                    case '🪼 Medusa':
+                        // Rotación lenta y ondulante, como una medusa
+                        model.rotation.y += delta * 0.1;
+                        model.rotation.x = Math.sin(elapsedTime * 0.5 + model.userData.id) * 0.2;
+                        model.rotation.z = Math.cos(elapsedTime * 0.5 + model.userData.id) * 0.2;
+                        break;
+                    case '🪸 Coral':
+                        // Casi estático, rotación muy lenta
+                        model.rotation.y += delta * 0.05;
+                        break;
+                    case '🐙 Pulpo':
+                        // Movimiento más complejo y orgánico
+                        model.rotation.y += Math.sin(elapsedTime * 0.8 + model.userData.id) * 0.005;
+                        model.rotation.x += Math.cos(elapsedTime * 0.6 + model.userData.id) * 0.008;
+                        model.rotation.z += Math.sin(elapsedTime * 0.7 + model.userData.id) * 0.006;
+                        break;
+                    case '🌸 Flor':
+                        // Gira sobre su eje Y, como buscando el sol
+                        model.rotation.y += delta * 0.25;
+                        break;
+                    case '🌵 Cactus':
+                        // Rotación más rígida y espinosa
+                        model.rotation.y += delta * 0.1;
+                        model.rotation.x = Math.sin(elapsedTime * 0.2 + model.userData.id) * 0.05;
+                        break;
+                    case '🌿 Helecho':
+                        // Un suave balanceo
+                        model.rotation.z = Math.sin(elapsedTime * 0.7 + model.userData.id) * 0.3;
+                        break;
+                    default:
+                        // Rotación suave por defecto
+                        model.rotation.y += 0.005;
+                        model.rotation.x += Math.sin(elapsedTime + model.userData.id) * 0.002;
+                        model.rotation.z += Math.cos(elapsedTime + model.userData.id) * 0.002;
+                        break;
+                }
 
                 // 3. Rebotar en los límites del escenario
                 if (Math.abs(model.position.x) > bounds.x) model.userData.velocity.x *= -1;
