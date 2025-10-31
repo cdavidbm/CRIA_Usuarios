@@ -1,3 +1,4 @@
+import { MIDIController } from './midiControllerPortal.js';
 const socket = io();
 let scene, camera, renderer, model, controls, clock;
 let isAnimating = true;
@@ -135,6 +136,10 @@ function init() {
             // Ocultar mensaje de carga
             const loadingMessage = document.getElementById('loadingMessage');
             if (loadingMessage) loadingMessage.style.display = 'none';
+
+            // Inicializar controlador MIDI
+            const midiController = new MIDIController();
+            midiController.init();
         },
         undefined,
         function (error) {
