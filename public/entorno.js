@@ -8,6 +8,7 @@ class ModelViewer {
         this.clock = new THREE.Clock();
         this.models = [];
         this.modelCache = new Map(); // Cache para modelos cargados
+        this.matcapMaterial = null; // Material base para los modelos
         this.isAnimating = true;
         this.maxModels = 20; // Límite de modelos en escena
 
@@ -18,6 +19,11 @@ class ModelViewer {
 
     init() {
         try {
+            // Cargar y configurar el material MatCap una vez
+            const textureLoader = new THREE.TextureLoader();
+            const matcapTexture = textureLoader.load('/assets/matcap_iridescent.png');
+            this.matcapMaterial = new THREE.MeshMatcapMaterial({ matcap: matcapTexture });
+
             this.createScene();
             this.createCamera();
             this.createRenderer();
@@ -242,15 +248,21 @@ class ModelViewer {
             this.applyMorphTargets(model, modelData.morphTargets);
         }
 
+        // Clonar el material base para cada modelo para permitir colores únicos
+        const newMaterial = this.matcapMaterial.clone();
+
+        // Convertir el HUE recibido a un color y aplicarlo como tinte
+        if (modelData.color) {
+            const hue = parseInt(modelData.color) / 360; // Normalizar el HUE a un rango de 0-1
+            const saturation = 0.7;
+            const lightness = 0.5;
+            newMaterial.color.setHSL(hue, saturation, lightness);
+        }
+
         // Aplicar materiales y propiedades
         model.traverse((child) => {
             if (child.isMesh) {
-                // Clonar material para evitar interferencias
-                child.material = child.material.clone();
-
-                if (modelData.color) {
-                    child.material.color.set(modelData.color);
-                }
+                child.material = newMaterial;
 
                 // Configurar sombras
                 child.castShadow = true;
