@@ -30,6 +30,7 @@ class ModelViewer {
             this.createLighting();
             this.createHelpers();
             this.createControls();
+            this.setupXR();
             this.animate();
 
             console.log('ModelViewer inicializado correctamente');
@@ -73,6 +74,8 @@ class ModelViewer {
         this.renderer.toneMappingExposure = 1.2;
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        this.renderer.xr.enabled = true;
 
         container.appendChild(this.renderer.domElement);
     }
@@ -130,6 +133,10 @@ class ModelViewer {
         this.controls.autoRotateSpeed = 0.5;
     }
 
+    setupXR() {
+        document.body.appendChild(VRButton.createButton(this.renderer));
+    }
+
     setupSocketListeners() {
         this.socket.on('new-cube', (modelData) => {
             this.handleNewModel(modelData);
@@ -175,6 +182,7 @@ class ModelViewer {
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
                 this.isAnimating = false;
+                this.renderer.setAnimationLoop(null);
             } else {
                 this.isAnimating = true;
                 this.animate();
@@ -429,6 +437,8 @@ class ModelViewer {
         this.isAnimating = !this.isAnimating;
         if (this.isAnimating) {
             this.animate();
+        } else {
+            this.renderer.setAnimationLoop(null);
         }
         this.showNotification(
             this.isAnimating ? 'Animación reanudada' : 'Animación pausada',
@@ -437,168 +447,168 @@ class ModelViewer {
     }
 
     animate() {
-        if (!this.isAnimating) return;
+        this.renderer.setAnimationLoop(() => {
+            if (!this.isAnimating) return;
 
-        requestAnimationFrame(() => this.animate());
+            const delta = this.clock.getDelta();
+            const elapsedTime = this.clock.getElapsedTime();
 
-        const delta = this.clock.getDelta();
-        const elapsedTime = this.clock.getElapsedTime();
+            // Límites del área de movimiento
+            const bounds = { x: 10, y: 6, z: 10 };
 
-        // Límites del área de movimiento
-        const bounds = { x: 10, y: 6, z: 10 };
+            // --- Lógica de Comportamiento y Animación ---
 
-        // --- Lógica de Comportamiento y Animación ---
+            // Parámetros del comportamiento de agrupación (flocking)
+            const perceptionRadius = 5; // Radio de percepción para encontrar vecinos
+            const separationDistance = 1.5; // Distancia mínima para empezar a separar
+            const colorAffinityThreshold = 45; // Umbral de HUE (de 360) para considerar colores "similares"
+            const cohesionForce = 0.0005;
+            const separationForce = 0.005;
+            const maxSpeed = 1.5;
+            const minSpeed = 0.2;
 
-        // Parámetros del comportamiento de agrupación (flocking)
-        const perceptionRadius = 5; // Radio de percepción para encontrar vecinos
-        const separationDistance = 1.5; // Distancia mínima para empezar a separar
-        const colorAffinityThreshold = 45; // Umbral de HUE (de 360) para considerar colores "similares"
-        const cohesionForce = 0.0005;
-        const separationForce = 0.005;
-        const maxSpeed = 1.5;
-        const minSpeed = 0.2;
+            // 1. Calcular aceleraciones basadas en el comportamiento
+            this.models.forEach(model => {
+                model.userData.acceleration.set(0, 0, 0);
+                const centerOfMass = new THREE.Vector3();
+                let neighborCount = 0;
+                const separationVector = new THREE.Vector3();
 
-        // 1. Calcular aceleraciones basadas en el comportamiento
-        this.models.forEach(model => {
-            model.userData.acceleration.set(0, 0, 0);
-            const centerOfMass = new THREE.Vector3();
-            let neighborCount = 0;
-            const separationVector = new THREE.Vector3();
+                this.models.forEach(other => {
+                    if (model === other) return;
 
-            this.models.forEach(other => {
-                if (model === other) return;
+                    const distance = model.position.distanceTo(other.position);
+                    if (distance < perceptionRadius) {
+                        // Regla de Cohesión (Atracción por color)
+                        const myHue = parseInt(model.userData.originalData.color);
+                        const otherHue = parseInt(other.userData.originalData.color);
+                        const hueDifference = Math.min(Math.abs(myHue - otherHue), 360 - Math.abs(myHue - otherHue));
 
-                const distance = model.position.distanceTo(other.position);
-                if (distance < perceptionRadius) {
-                    // Regla de Cohesión (Atracción por color)
-                    const myHue = parseInt(model.userData.originalData.color);
-                    const otherHue = parseInt(other.userData.originalData.color);
-                    const hueDifference = Math.min(Math.abs(myHue - otherHue), 360 - Math.abs(myHue - otherHue));
+                        if (hueDifference < colorAffinityThreshold) {
+                            centerOfMass.add(other.position);
+                            neighborCount++;
+                        }
 
-                    if (hueDifference < colorAffinityThreshold) {
-                        centerOfMass.add(other.position);
-                        neighborCount++;
+                        // Regla de Separación (Evitar colisiones)
+                        if (distance < separationDistance) {
+                            const diff = new THREE.Vector3().subVectors(model.position, other.position);
+                            diff.divideScalar(distance * distance); // La fuerza es inversamente proporcional al cuadrado de la distancia
+                            separationVector.add(diff);
+                        }
                     }
+                });
 
-                    // Regla de Separación (Evitar colisiones)
-                    if (distance < separationDistance) {
-                        const diff = new THREE.Vector3().subVectors(model.position, other.position);
-                        diff.divideScalar(distance * distance); // La fuerza es inversamente proporcional al cuadrado de la distancia
-                        separationVector.add(diff);
-                    }
+                if (neighborCount > 0) {
+                    centerOfMass.divideScalar(neighborCount);
+                    const cohesionVector = new THREE.Vector3().subVectors(centerOfMass, model.position);
+                    cohesionVector.normalize().multiplyScalar(cohesionForce);
+                    model.userData.acceleration.add(cohesionVector);
+                }
+
+                separationVector.multiplyScalar(separationForce);
+                model.userData.acceleration.add(separationVector);
+
+                // Regla de Contención para mantener a las criaturas dentro del área
+                const containmentForce = 0.01;
+                if (model.position.x > bounds.x) model.userData.acceleration.x -= containmentForce;
+                if (model.position.x < -bounds.x) model.userData.acceleration.x += containmentForce;
+                if (model.position.y > bounds.y) model.userData.acceleration.y -= containmentForce;
+                if (model.position.y < 0.5) model.userData.acceleration.y += containmentForce * 2; // Empujar más fuerte desde el "suelo"
+                if (model.position.z > bounds.z) model.userData.acceleration.z -= containmentForce;
+                if (model.position.z < -bounds.z) model.userData.acceleration.z += containmentForce;
+
+                // Regla de "Curiosidad" (Wander) para que no se queden quietas
+                const wanderStrength = 0.0002;
+                const wanderForce = new THREE.Vector3(
+                    (Math.random() - 0.5) * wanderStrength,
+                    (Math.random() - 0.5) * wanderStrength,
+                    (Math.random() - 0.5) * wanderStrength
+                );
+                model.userData.acceleration.add(wanderForce);
+            });
+
+            // 2. Aplicar físicas, ciclo de vida y rotaciones
+            const modelsToRemove = [];
+            this.models.forEach(model => {
+                if (!model.userData.velocity) return;
+
+                // -- Ciclo de Vida --
+                model.userData.lifespan -= delta;
+                if (model.userData.lifespan <= 0) {
+                    modelsToRemove.push(model);
+                }
+
+                // Escalar según el tiempo de vida restante
+                const lifeRatio = Math.max(0, model.userData.lifespan / model.userData.maxLifespan);
+                const scale = model.userData.originalSize * lifeRatio;
+                model.scale.setScalar(scale);
+
+
+                // -- Físicas --
+                // Actualizar velocidad con la aceleración
+                model.userData.velocity.add(model.userData.acceleration);
+                model.userData.velocity.clampLength(minSpeed, maxSpeed); // Limitar velocidad
+
+                // Actualizar posición
+                model.position.add(model.userData.velocity.clone().multiplyScalar(delta));
+
+                // -- Rotación --
+                const shape = model.userData.dominantShape || 'default';
+                switch (shape) {
+                    case '🪼 Medusa':
+                        model.rotation.y += delta * 0.1;
+                        model.rotation.x = Math.sin(elapsedTime * 0.5 + model.userData.id) * 0.2;
+                        model.rotation.z = Math.cos(elapsedTime * 0.5 + model.userData.id) * 0.2;
+                        break;
+                    case '🪸 Coral':
+                        model.rotation.y += delta * 0.05;
+                        break;
+                    case '🐙 Pulpo':
+                        model.rotation.y += Math.sin(elapsedTime * 0.8 + model.userData.id) * 0.005;
+                        model.rotation.x += Math.cos(elapsedTime * 0.6 + model.userData.id) * 0.008;
+                        model.rotation.z += Math.sin(elapsedTime * 0.7 + model.userData.id) * 0.006;
+                        break;
+                    case '🌸 Flor':
+                        model.rotation.y += delta * 0.25;
+                        break;
+                    case '🌵 Cactus':
+                        model.rotation.y += delta * 0.1;
+                        model.rotation.x = Math.sin(elapsedTime * 0.2 + model.userData.id) * 0.05;
+                        break;
+                    case '🌿 Helecho':
+                        model.rotation.z = Math.sin(elapsedTime * 0.7 + model.userData.id) * 0.3;
+                        break;
+                    default:
+                        model.rotation.y += 0.005;
+                        model.rotation.x += Math.sin(elapsedTime + model.userData.id) * 0.002;
+                        model.rotation.z += Math.cos(elapsedTime + model.userData.id) * 0.002;
+                        break;
                 }
             });
 
-            if (neighborCount > 0) {
-                centerOfMass.divideScalar(neighborCount);
-                const cohesionVector = new THREE.Vector3().subVectors(centerOfMass, model.position);
-                cohesionVector.normalize().multiplyScalar(cohesionForce);
-                model.userData.acceleration.add(cohesionVector);
+            // 3. Eliminar modelos "muertos"
+            if (modelsToRemove.length > 0) {
+                modelsToRemove.forEach(model => {
+                    this.scene.remove(model);
+                    this.disposeModel(model);
+                    const index = this.models.indexOf(model);
+                    if (index > -1) {
+                        this.models.splice(index, 1);
+                    }
+                });
             }
 
-            separationVector.multiplyScalar(separationForce);
-            model.userData.acceleration.add(separationVector);
+            // La colisión física se maneja después de la actualización de posición
+            this.handleCollisions();
 
-            // Regla de Contención para mantener a las criaturas dentro del área
-            const containmentForce = 0.01;
-            if (model.position.x > bounds.x) model.userData.acceleration.x -= containmentForce;
-            if (model.position.x < -bounds.x) model.userData.acceleration.x += containmentForce;
-            if (model.position.y > bounds.y) model.userData.acceleration.y -= containmentForce;
-            if (model.position.y < 0.5) model.userData.acceleration.y += containmentForce * 2; // Empujar más fuerte desde el "suelo"
-            if (model.position.z > bounds.z) model.userData.acceleration.z -= containmentForce;
-            if (model.position.z < -bounds.z) model.userData.acceleration.z += containmentForce;
+            // Actualizar controles
+            if (this.controls) {
+                this.controls.update();
+            }
 
-            // Regla de "Curiosidad" (Wander) para que no se queden quietas
-            const wanderStrength = 0.0002;
-            const wanderForce = new THREE.Vector3(
-                (Math.random() - 0.5) * wanderStrength,
-                (Math.random() - 0.5) * wanderStrength,
-                (Math.random() - 0.5) * wanderStrength
-            );
-            model.userData.acceleration.add(wanderForce);
+            // Render
+            this.renderer.render(this.scene, this.camera);
         });
-
-        // 2. Aplicar físicas, ciclo de vida y rotaciones
-        const modelsToRemove = [];
-        this.models.forEach(model => {
-            if (!model.userData.velocity) return;
-
-            // -- Ciclo de Vida --
-            model.userData.lifespan -= delta;
-            if (model.userData.lifespan <= 0) {
-                modelsToRemove.push(model);
-            }
-
-            // Escalar según el tiempo de vida restante
-            const lifeRatio = Math.max(0, model.userData.lifespan / model.userData.maxLifespan);
-            const scale = model.userData.originalSize * lifeRatio;
-            model.scale.setScalar(scale);
-
-
-            // -- Físicas --
-            // Actualizar velocidad con la aceleración
-            model.userData.velocity.add(model.userData.acceleration);
-            model.userData.velocity.clampLength(minSpeed, maxSpeed); // Limitar velocidad
-
-            // Actualizar posición
-            model.position.add(model.userData.velocity.clone().multiplyScalar(delta));
-
-            // -- Rotación --
-            const shape = model.userData.dominantShape || 'default';
-            switch (shape) {
-                case '🪼 Medusa':
-                    model.rotation.y += delta * 0.1;
-                    model.rotation.x = Math.sin(elapsedTime * 0.5 + model.userData.id) * 0.2;
-                    model.rotation.z = Math.cos(elapsedTime * 0.5 + model.userData.id) * 0.2;
-                    break;
-                case '🪸 Coral':
-                    model.rotation.y += delta * 0.05;
-                    break;
-                case '🐙 Pulpo':
-                    model.rotation.y += Math.sin(elapsedTime * 0.8 + model.userData.id) * 0.005;
-                    model.rotation.x += Math.cos(elapsedTime * 0.6 + model.userData.id) * 0.008;
-                    model.rotation.z += Math.sin(elapsedTime * 0.7 + model.userData.id) * 0.006;
-                    break;
-                case '🌸 Flor':
-                    model.rotation.y += delta * 0.25;
-                    break;
-                case '🌵 Cactus':
-                    model.rotation.y += delta * 0.1;
-                    model.rotation.x = Math.sin(elapsedTime * 0.2 + model.userData.id) * 0.05;
-                    break;
-                case '🌿 Helecho':
-                    model.rotation.z = Math.sin(elapsedTime * 0.7 + model.userData.id) * 0.3;
-                    break;
-                default:
-                    model.rotation.y += 0.005;
-                    model.rotation.x += Math.sin(elapsedTime + model.userData.id) * 0.002;
-                    model.rotation.z += Math.cos(elapsedTime + model.userData.id) * 0.002;
-                    break;
-            }
-        });
-
-        // 3. Eliminar modelos "muertos"
-        if (modelsToRemove.length > 0) {
-            modelsToRemove.forEach(model => {
-                this.scene.remove(model);
-                this.disposeModel(model);
-                const index = this.models.indexOf(model);
-                if (index > -1) {
-                    this.models.splice(index, 1);
-                }
-            });
-        }
-
-        // La colisión física se maneja después de la actualización de posición
-        this.handleCollisions();
-
-        // Actualizar controles
-        if (this.controls) {
-            this.controls.update();
-        }
-
-        // Render
-        this.renderer.render(this.scene, this.camera);
     }
 
     handleCollisions() {
