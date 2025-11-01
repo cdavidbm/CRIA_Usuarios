@@ -1,3 +1,10 @@
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { VRButton } from './VRButton.js';
+import { XRControllerModelFactory } from './XRControllerModelFactory.js';
+
+
 class ModelViewer {
     constructor() {
         this.socket = io();
@@ -11,6 +18,19 @@ class ModelViewer {
         this.matcapMaterial = null; // Material base para los modelos
         this.isAnimating = true;
         this.maxModels = 20; // Límite de modelos en escena
+        this.vrExitButton = null; // Botón para salir de VR
+
+        this.controller1 = null;
+        this.controller2 = null;
+        this.controllerGrip1 = null;
+        this.controllerGrip2 = null;
+        this.raycaster = null;
+        this.intersected = []; // To store intersected objects by controllers
+        this.tempMatrix = new THREE.Matrix4();
+
+        // Bind 'this' for event handlers
+        this.onSelectStart = this.onSelectStart.bind(this);
+        this.onSelectEnd = this.onSelectEnd.bind(this);
 
         this.init();
         this.setupSocketListeners();
@@ -27,10 +47,10 @@ class ModelViewer {
             this.createScene();
             this.createCamera();
             this.createRenderer();
+            this.setupXR();
             this.createLighting();
             this.createHelpers();
             this.createControls();
-            this.setupXR();
             this.animate();
 
             console.log('ModelViewer inicializado correctamente');
@@ -75,8 +95,6 @@ class ModelViewer {
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-        this.renderer.xr.enabled = true;
-
         container.appendChild(this.renderer.domElement);
     }
 
@@ -106,12 +124,6 @@ class ModelViewer {
     }
 
     createHelpers() {
-        // Grid helper mejorado
-        // const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x444444);
-        // gridHelper.material.opacity = 0.5;
-        // gridHelper.material.transparent = true;
-        // this.scene.add(gridHelper);
-
         // Plano invisible para recibir sombras
         const planeGeometry = new THREE.PlaneGeometry(50, 50);
         const planeMaterial = new THREE.ShadowMaterial({ opacity: 0.3 });
@@ -123,7 +135,7 @@ class ModelViewer {
     }
 
     createControls() {
-        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = false; // Desactivar para un control preciso y sin inercia
         this.controls.screenSpacePanning = false;
         this.controls.minDistance = 3;
@@ -134,8 +146,88 @@ class ModelViewer {
     }
 
     setupXR() {
+        this.renderer.xr.enabled = true;
         document.body.appendChild(VRButton.createButton(this.renderer));
+
+        // controllers
+        this.controller1 = this.renderer.xr.getController(0);
+        this.controller1.addEventListener('selectstart', this.onSelectStart);
+        this.controller1.addEventListener('selectend', this.onSelectEnd);
+        this.scene.add(this.controller1);
+
+        this.controller2 = this.renderer.xr.getController(1);
+        this.controller2.addEventListener('selectstart', this.onSelectStart);
+        this.controller2.addEventListener('selectend', this.onSelectEnd);
+        this.scene.add(this.controller2);
+
+        const controllerModelFactory = new XRControllerModelFactory();
+
+        this.controllerGrip1 = this.renderer.xr.getControllerGrip(0);
+        this.controllerGrip1.add(controllerModelFactory.createControllerModel(this.controllerGrip1));
+        this.scene.add(this.controllerGrip1);
+
+        this.controllerGrip2 = this.renderer.xr.getControllerGrip(1);
+        this.controllerGrip2.add(controllerModelFactory.createControllerModel(this.controllerGrip2));
+        this.scene.add(this.controllerGrip2);
+
+        // Pointer lines
+        const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]);
+        const line = new THREE.Line(geometry);
+        line.name = 'line';
+        line.scale.z = 5;
+
+        this.controller1.add(line.clone());
+        this.controller2.add(line.clone());
+
+        this.raycaster = new THREE.Raycaster();
     }
+
+    onSelectStart(event) {
+        const controller = event.target;
+        const intersections = this.getIntersections(controller);
+
+        if (intersections.length > 0) {
+            const intersection = intersections[0];
+            let object = intersection.object;
+
+            // Check if the intersected object is the exit button
+            if (this.vrExitButton && this.vrExitButton.children.includes(object)) {
+                 const session = this.renderer.xr.getSession();
+                 if (session) session.end();
+                 return; // Stop further processing
+            }
+
+
+            // It's a creature, find the parent group
+            let parent = object.parent;
+            while (parent && !this.models.includes(parent)) {
+                parent = parent.parent;
+            }
+            if (parent && parent.userData) {
+                parent.userData.isTickled = true;
+                parent.userData.tickleTime = 1.0; // 1 second
+            }
+        }
+    }
+
+    onSelectEnd(event) {
+        // We can add visual feedback here if needed, e.g., change controller line color
+    }
+
+    getIntersections(controller) {
+        this.tempMatrix.identity().extractRotation(controller.matrixWorld);
+        this.raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+        this.raycaster.ray.direction.set(0, 0, -1).applyMatrix4(this.tempMatrix);
+        
+        // Intersect with models and the exit button
+        const objectsToIntersect = [...this.models];
+        if (this.vrExitButton) {
+            objectsToIntersect.push(this.vrExitButton);
+        }
+
+        return this.raycaster.intersectObjects(objectsToIntersect, true);
+    }
+
 
     setupSocketListeners() {
         this.socket.on('new-cube', (modelData) => {
@@ -219,7 +311,7 @@ class ModelViewer {
                 return;
             }
 
-            const loader = new THREE.GLTFLoader();
+            const loader = new GLTFLoader();
 
             // Timeout para evitar esperas infinitas
             const timeoutId = setTimeout(() => {
@@ -352,7 +444,9 @@ class ModelViewer {
                 (Math.random() - 0.5) * 0.3, // Velocidad Y
                 (Math.random() - 0.5) * 0.8  // Velocidad Z
             ).multiplyScalar(speedFactor),
-            acceleration: new THREE.Vector3()
+            acceleration: new THREE.Vector3(),
+            isTickled: false,
+            tickleTime: 0
         };
 
         this.scene.add(model);
@@ -453,6 +547,38 @@ class ModelViewer {
             const delta = this.clock.getDelta();
             const elapsedTime = this.clock.getElapsedTime();
 
+            // VR Exit Button Logic
+            if (this.renderer.xr.isPresenting) {
+                if (!this.vrExitButton) {
+                    const buttonGeometry = new THREE.PlaneGeometry(0.6, 0.15);
+                    const canvas = document.createElement('canvas');
+                    const canvasWidth = 512;
+                    const canvasHeight = 128;
+                    canvas.width = canvasWidth;
+                    canvas.height = canvasHeight;
+                    const context = canvas.getContext('2d');
+                    context.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    context.fillRect(0, 0, canvasWidth, canvasHeight);
+                    context.font = 'bold 50px sans-serif';
+                    context.fillStyle = 'white';
+                    context.textAlign = 'center';
+                    context.textBaseline = 'middle';
+                    context.fillText('Salir de VR', canvasWidth / 2, canvasHeight / 2);
+                    const buttonTexture = new THREE.CanvasTexture(canvas);
+                    const buttonMaterial = new THREE.MeshBasicMaterial({ map: buttonTexture, transparent: true });
+                    this.vrExitButton = new THREE.Group();
+                    this.vrExitButton.add(new THREE.Mesh(buttonGeometry, buttonMaterial));
+                    this.vrExitButton.position.set(0, -0.5, -2);
+                    this.camera.add(this.vrExitButton);
+                }
+            } else {
+                if (this.vrExitButton) {
+                    this.camera.remove(this.vrExitButton);
+                    this.vrExitButton = null;
+                }
+            }
+
+
             // Límites del área de movimiento
             const bounds = { x: 10, y: 6, z: 10 };
 
@@ -469,6 +595,17 @@ class ModelViewer {
 
             // 1. Calcular aceleraciones basadas en el comportamiento
             this.models.forEach(model => {
+                // Tickle animation
+                if (model.userData.isTickled) {
+                    model.position.x += (Math.random() - 0.5) * 0.1;
+                    model.position.y += (Math.random() - 0.5) * 0.1;
+                    model.userData.tickleTime -= delta;
+                    if (model.userData.tickleTime <= 0) {
+                        model.userData.isTickled = false;
+                    }
+                }
+
+
                 model.userData.acceleration.set(0, 0, 0);
                 const centerOfMass = new THREE.Vector3();
                 let neighborCount = 0;
@@ -729,12 +866,11 @@ class ModelViewer {
     }
 }
 
-// Inicializar cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', () => {
-    window.modelViewer = new ModelViewer();
-});
+new ModelViewer();
 
-// Mostrar ayuda en consola
+// The old DOMContentLoaded listener is removed as modules are deferred by default.
+
+// Keep console help
 console.log(`
 🎮 Controles del ModelViewer:
 - ESPACIO: Pausar/reanudar animación

@@ -14,15 +14,20 @@
         }
     </style>
     <script src="/socket.io/socket.io.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.137.0/build/three.module.js",
+            "three/examples/jsm/": "https://cdn.jsdelivr.net/npm/three@0.137.0/examples/jsm/",
+            "@webxr-input-profiles/motion-controllers": "https://cdn.jsdelivr.net/npm/@webxr-input-profiles/motion-controllers@1.0/dist/motion-controllers.module.js"
+        }
+    }
+    </script>
 </head>
 
 <body>
     <div id="environment"></div>
-    <script src="VRButton.js"></script>
-    <script src="entorno.js"></script>
+    <script type="module" src="entorno.js"></script>
 </body>
 
 </html>
