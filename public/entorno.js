@@ -27,6 +27,7 @@ class ModelViewer {
         this.raycaster = null;
         this.intersected = []; // To store intersected objects by controllers
         this.tempMatrix = new THREE.Matrix4();
+        this.hatchingEggs = [];
 
         // Bind 'this' for event handlers
         this.onSelectStart = this.onSelectStart.bind(this);
@@ -449,8 +450,26 @@ class ModelViewer {
             tickleTime: 0
         };
 
-        this.scene.add(model);
-        this.models.push(model);
+        // EN SU LUGAR, CREAR EL "HUEVO"
+        const eggGeometry = new THREE.SphereGeometry(0.5, 16, 16); // Menos polígonos para eficiencia
+        const eggMaterial = this.matcapMaterial.clone();
+        if (modelData.color) {
+            const hue = parseInt(modelData.color) / 360;
+            eggMaterial.color.setHSL(hue, 0.7, 0.5);
+        }
+        const egg = new THREE.Mesh(eggGeometry, eggMaterial);
+        egg.position.copy(position);
+        egg.scale.setScalar(0.01); // Empezar muy pequeño
+
+        egg.userData = {
+            isEgg: true,
+            birthTime: 0,
+            finalModel: model,
+            originalData: modelData
+        };
+
+        this.scene.add(egg);
+        this.hatchingEggs.push(egg);
     }
 
     findOptimalPosition() {
@@ -546,6 +565,61 @@ class ModelViewer {
 
             const delta = this.clock.getDelta();
             const elapsedTime = this.clock.getElapsedTime();
+
+            // --- Animación de Nacimiento (Hatching) ---
+            const eggsFinishedHatching = [];
+            this.hatchingEggs.forEach(egg => {
+                egg.userData.birthTime += delta;
+                const birthDuration = 1.5; // seconds
+                const vibrationPhaseDuration = 0.8; // seconds
+
+                if (egg.userData.birthTime < vibrationPhaseDuration) {
+                    // Phase 1: Vibration and growth
+                    const progress = egg.userData.birthTime / vibrationPhaseDuration;
+                    const scaleProgress = progress * progress; // ease-in
+                    
+                    const vibration = 1.0 + Math.sin(egg.userData.birthTime * 50) * 0.1; // Fast vibration
+                    
+                    const creatureSize = parseFloat(egg.userData.originalData.size || 1.0);
+                    egg.scale.setScalar(scaleProgress * creatureSize * vibration);
+
+                } else if (egg.userData.birthTime < birthDuration) {
+                    // Phase 2: Transition to final model
+                    const progress = (egg.userData.birthTime - vibrationPhaseDuration) / (birthDuration - vibrationPhaseDuration);
+                    
+                    // Egg shrinks
+                    const creatureSize = parseFloat(egg.userData.originalData.size || 1.0);
+                    egg.scale.setScalar(creatureSize * (1 - progress));
+
+                    // Final model grows
+                    const finalModel = egg.userData.finalModel;
+                    if (!finalModel.parent) { // Add it to the scene if it's not there yet
+                        this.scene.add(finalModel);
+                    }
+                    finalModel.scale.setScalar(creatureSize * progress);
+
+                } else {
+                    // Animation finished
+                    const finalModel = egg.userData.finalModel;
+                    const creatureSize = parseFloat(egg.userData.originalData.size || 1.0);
+
+                    finalModel.scale.setScalar(creatureSize); // Ensure final scale
+                    
+                    if (!finalModel.parent) {
+                        this.scene.add(finalModel);
+                    }
+                    
+                    this.models.push(finalModel); // Now it's a regular model
+                    
+                    this.scene.remove(egg);
+                    this.disposeModel(egg); // Clean up egg resources
+                    
+                    eggsFinishedHatching.push(egg);
+                }
+            });
+
+            // Remove finished eggs from the hatching list
+            this.hatchingEggs = this.hatchingEggs.filter(egg => !eggsFinishedHatching.includes(egg));
 
             // VR Exit Button Logic
             if (this.renderer.xr.isPresenting) {
