@@ -11,6 +11,15 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/controls/OrbitControls.js"></script>
     <style>
+        #hydra-fondo {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
         :root {
             /* Tamaños principales */
             --controles-size: 800px;
@@ -21,7 +30,7 @@
 
             /* Colores y transparencias */
             --controles-bg: rgba(185, 185, 185, 0.075);
-            --controles-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.10) 100%);
+            --controles-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.10) 1%);
             --controles-border: rgba(255, 255, 255, 0.35);
             --controles-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.25), 0 1.5px 8px 0 rgba(255, 255, 255, 0.18) inset;
 
@@ -39,28 +48,11 @@
             font-family: 'Inter', Arial, Helvetica, sans-serif;
             font-size: 16px;
             color: #1a2233;
-            background: linear-gradient(135deg, #112fb4 0%, #a2c4eb 50%, #567386 100%);
-            background-size: 400% 400%;
-            animation: gradientShift 15s ease infinite;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
-        }
-
-        @keyframes gradientShift {
-            0% {
-                background-position: 0% 50%;
-            }
-
-            50% {
-                background-position: 100% 50%;
-            }
-
-            100% {
-                background-position: 0% 50%;
-            }
         }
 
         /* Mensaje de carga */
@@ -520,6 +512,7 @@
 </head>
 
 <body>
+    <canvas id="hydra-fondo"></canvas>
     <div id="loadingMessage">✨ Cargando modelo...</div>
 
     <div id="controles">
@@ -553,9 +546,8 @@
 
     <script type="module" src="midiControllerPortal.js"></script>
     <script type="module" src="portal.js"></script>
-</body>
-
-</html>
+    <script src="https://unpkg.com/hydra-synth"></script>
+    <script src="fondoHydra.js"></script>
 <script>
     // Script adicional para mejorar la visualización de knobs
     document.addEventListener('DOMContentLoaded', function () {
