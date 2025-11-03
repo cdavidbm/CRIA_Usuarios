@@ -1,86 +1,169 @@
-#include <MIDIUSB.h> // Incluye la librería para comunicación MIDI vía USB
+/*
+ * Controlador MIDI con Arduino Leonardo + 74HC4067
+ * - 6 potenciómetros circulares (CC 1-6)
+ * - 2 sliders (CC 7-8)
+ * - 4 botones (Notas 60-63)
+ */
 
-// --- Definiciones de Pines para Potenciómetros ---
-const int PIN_POT_1 = A0;
-const int PIN_POT_2 = A1;
-const int PIN_POT_3 = A2;
-const int PIN_POT_4 = A3;
-const int PIN_POT_5 = A4;
+#include <MIDIUSB.h>
 
-// --- Variables para los Valores Anteriores de los Potenciómetros (para detectar cambios) ---
-int valorAnteriorPot1 = -1; // Inicializado a -1 para forzar la primera lectura
-int valorAnteriorPot2 = -1;
-int valorAnteriorPot3 = -1;
-int valorAnteriorPot4 = -1;
-int valorAnteriorPot5 = -1;
+// ===== PINES DEL MULTIPLEXOR 74HC4067 =====
+const int S0 = 8;
+const int S1 = 9;
+const int S2 = 10;
+const int S3 = 11;
+const int SIG_PIN = A0;  // Pin común del mux conectado a A0
+const int EN_PIN = 7;    // Pin Enable (opcional, conectar a GND si no se usa)
 
-// --- Configuración MIDI (Canal y Control Change (CC) numbers) ---
-const int CANAL_MIDI  = 1;   // Canal MIDI a usar (del 1 al 16)
-const int CC_POT_1    = 70;
-const int CC_POT_2    = 71;
-const int CC_POT_3    = 72;
-const int CC_POT_4    = 73;
-const int CC_POT_5    = 74;
+// ===== PINES DE LOS BOTONES (conexión directa) =====
+const int BUTTON_PINS[4] = {2, 3, 4, 5};  // Pines digitales para botones
 
-// --- Umbral de Sensibilidad para Potenciómetros (cuánto debe cambiar para enviar un mensaje MIDI) ---
-const int UMBRAL_CAMBIO = 2; // El valor analógico debe cambiar al menos este valor para enviar MIDI
+// ===== CONFIGURACIÓN MIDI =====
+const int MIDI_CHANNEL = 0;  // Canal MIDI (0-15, donde 0 = canal 1)
 
+// Canales del multiplexor para cada control analógico
+const int POT1_CHANNEL = 0;    // Potenciómetro 1 en canal 0
+const int POT2_CHANNEL = 1;    // Potenciómetro 2 en canal 1
+const int POT3_CHANNEL = 2;    // Potenciómetro 3 en canal 2
+const int POT4_CHANNEL = 3;    // Potenciómetro 4 en canal 3
+const int POT5_CHANNEL = 4;    // Potenciómetro 5 en canal 4
+const int POT6_CHANNEL = 5;    // Potenciómetro 6 en canal 5
+const int SLIDER1_CHANNEL = 6; // Slider 1 en canal 6
+const int SLIDER2_CHANNEL = 7; // Slider 2 en canal 7
+
+// CC numbers para cada control
+const int CC_NUMBERS[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+
+// Notas MIDI para los botones
+const int NOTE_NUMBERS[4] = {60, 61, 62, 63};  // C4, C#4, D4, D#4
+
+// ===== VARIABLES PARA SUAVIZADO Y DETECCIÓN DE CAMBIOS =====
+int lastAnalogValues[8] = {-1, -1, -1, -1, -1, -1, -1, -1};
+bool lastButtonStates[4] = {HIGH, HIGH, HIGH, HIGH};  // HIGH = no presionado (pull-up)
+const int ANALOG_THRESHOLD = 4;  // Cambio mínimo para enviar CC (reduce ruido)
+
+// ===== SETUP =====
 void setup() {
-  // Inicializa la comunicación serial para depuración (opcional)
-  Serial.begin(9600);
-}
-
-void loop() {
-  // --- Procesamiento de Potenciómetros ---
-
-  // Leer y enviar MIDI para Potenciómetro 1
-  procesarPotenciometro(PIN_POT_1, &valorAnteriorPot1, CC_POT_1);
-
-  // Leer y enviar MIDI para Potenciómetro 2
-  procesarPotenciometro(PIN_POT_2, &valorAnteriorPot2, CC_POT_2);
-
-  // Leer y enviar MIDI para Potenciómetro 3
-  procesarPotenciometro(PIN_POT_3, &valorAnteriorPot3, CC_POT_3);
-
-  // Leer y enviar MIDI para Potenciómetro 4
-  procesarPotenciometro(PIN_POT_4, &valorAnteriorPot4, CC_POT_4);
-
-  // Leer y enviar MIDI para Potenciómetro 5
-  procesarPotenciometro(PIN_POT_5, &valorAnteriorPot5, CC_POT_5);
-
-
-  // Esperar un poco para evitar sobrecargar la comunicación MIDI
-  // Un valor muy bajo puede causar inestabilidad. Un valor muy alto puede causar latencia.
-  delay(5);
-}
-
-/**
- * @brief Función para enviar un mensaje MIDI Control Change (CC).
- * @param canalMIDI El canal MIDI (0-15, que se mapea a 1-16).
- * @param numeroCC El número de Control Change (0-127).
- * @param valorCC El valor del Control Change (0-127).
- */
-void enviarControlChange(int canalMIDI, int numeroCC, int valorCC) {
-  midiEventPacket_t event = {0x0B, 0xB0 | canalMIDI, (byte)numeroCC, (byte)valorCC};
-  MidiUSB.sendMIDI(event);
-  MidiUSB.flush(); // Asegura que el mensaje se envíe inmediatamente
-  //Serial.print("CC: "); Serial.print(numeroCC); Serial.print(", Val: "); Serial.println(valorCC); // Para depuración
-}
-
-/**
- * @brief Lee un potenciómetro, mapea su valor a 0-127 y envía un mensaje MIDI CC si el valor ha cambiado.
- * @param pinPotenciometro El pin analógico donde está conectado el potenciómetro.
- * @param valorAnterior Puntero a la variable que almacena el valor anterior del potenciómetro.
- * @param numeroCC El número de Control Change MIDI a enviar.
- */
-void procesarPotenciometro(int pinPotenciometro, int *valorAnterior, int numeroCC) {
-  int valorAnalogico = analogRead(pinPotenciometro);
-  // Mapea el valor de 0-1023 (lectura analógica) a 0-127 (valor MIDI CC)
-  int valorMIDI = map(valorAnalogico, 0, 1023, 0, 127);
-
-  // Comprueba si el valor ha cambiado significativamente para evitar enviar muchos mensajes
-  if (abs(valorMIDI - *valorAnterior) > UMBRAL_CAMBIO) {
-    enviarControlChange(CANAL_MIDI - 1, numeroCC, valorMIDI); // Resta 1 al canal MIDI (0-15)
-    *valorAnterior = valorMIDI; // Actualiza el valor anterior
+  // Configurar pines del multiplexor
+  pinMode(S0, OUTPUT);
+  pinMode(S1, OUTPUT);
+  pinMode(S2, OUTPUT);
+  pinMode(S3, OUTPUT);
+  pinMode(SIG_PIN, INPUT);
+  
+  // Configurar pin Enable (LOW = habilitado)
+  pinMode(EN_PIN, OUTPUT);
+  digitalWrite(EN_PIN, LOW);
+  
+  // Configurar botones con resistencias pull-up internas
+  for (int i = 0; i < 4; i++) {
+    pinMode(BUTTON_PINS[i], INPUT_PULLUP);
   }
+  
+  // Inicializar comunicación serial (opcional, para debug)
+  Serial.begin(115200);
+  
+  // Pequeño delay para estabilización
+  delay(100);
+}
+
+// ===== LOOP PRINCIPAL =====
+void loop() {
+  // Leer todos los controles analógicos
+  readAnalogControls();
+  
+  // Leer todos los botones
+  readButtons();
+  
+  // Pequeño delay para estabilidad
+  delay(10);
+}
+
+// ===== FUNCIÓN: SELECCIONAR CANAL DEL MULTIPLEXOR =====
+void selectMuxChannel(int channel) {
+  digitalWrite(S0, bitRead(channel, 0));
+  digitalWrite(S1, bitRead(channel, 1));
+  digitalWrite(S2, bitRead(channel, 2));
+  digitalWrite(S3, bitRead(channel, 3));
+  
+  // Pequeño delay para que el mux se estabilice
+  delayMicroseconds(100);
+}
+
+// ===== FUNCIÓN: LEER CONTROLES ANALÓGICOS =====
+void readAnalogControls() {
+  int channels[8] = {
+    POT1_CHANNEL, POT2_CHANNEL, POT3_CHANNEL, POT4_CHANNEL,
+    POT5_CHANNEL, POT6_CHANNEL, SLIDER1_CHANNEL, SLIDER2_CHANNEL
+  };
+  
+  for (int i = 0; i < 8; i++) {
+    // Seleccionar canal del multiplexor
+    selectMuxChannel(channels[i]);
+    
+    // Leer valor analógico (0-1023)
+    int rawValue = analogRead(SIG_PIN);
+    
+    // Convertir a rango MIDI (0-127)
+    int midiValue = map(rawValue, 0, 1023, 0, 127);
+    
+    // Solo enviar si el cambio es significativo (reduce ruido)
+    if (abs(midiValue - lastAnalogValues[i]) >= ANALOG_THRESHOLD) {
+      sendControlChange(CC_NUMBERS[i], midiValue);
+      lastAnalogValues[i] = midiValue;
+      
+      // Debug (opcional)
+      Serial.print("CC");
+      Serial.print(CC_NUMBERS[i]);
+      Serial.print(": ");
+      Serial.println(midiValue);
+    }
+  }
+}
+
+// ===== FUNCIÓN: LEER BOTONES =====
+void readButtons() {
+  for (int i = 0; i < 4; i++) {
+    bool currentState = digitalRead(BUTTON_PINS[i]);
+    
+    // Detectar cambio de estado (con pull-up, LOW = presionado)
+    if (currentState != lastButtonStates[i]) {
+      delay(20);  // Debounce simple
+      currentState = digitalRead(BUTTON_PINS[i]);
+      
+      if (currentState != lastButtonStates[i]) {
+        if (currentState == LOW) {
+          // Botón presionado: enviar Note On
+          sendNoteOn(NOTE_NUMBERS[i], 127);  // Velocity máximo
+          Serial.print("Note ON: ");
+          Serial.println(NOTE_NUMBERS[i]);
+        } else {
+          // Botón soltado: enviar Note Off
+          sendNoteOff(NOTE_NUMBERS[i]);
+          Serial.print("Note OFF: ");
+          Serial.println(NOTE_NUMBERS[i]);
+        }
+        lastButtonStates[i] = currentState;
+      }
+    }
+  }
+}
+
+// ===== FUNCIONES MIDI USB =====
+void sendControlChange(byte control, byte value) {
+  midiEventPacket_t event = {0x0B, 0xB0 | MIDI_CHANNEL, control, value};
+  MidiUSB.sendMIDI(event);
+  MidiUSB.flush();
+}
+
+void sendNoteOn(byte note, byte velocity) {
+  midiEventPacket_t event = {0x09, 0x90 | MIDI_CHANNEL, note, velocity};
+  MidiUSB.sendMIDI(event);
+  MidiUSB.flush();
+}
+
+void sendNoteOff(byte note) {
+  midiEventPacket_t event = {0x08, 0x80 | MIDI_CHANNEL, note, 0};
+  MidiUSB.sendMIDI(event);
+  MidiUSB.flush();
 }
