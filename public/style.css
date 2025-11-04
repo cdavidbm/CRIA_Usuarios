@@ -3,7 +3,7 @@
 /* 1. Variables & Global Resets
 -------------------------------------------------- */
 :root {
-    --color-bg: #0a0a14;
+    --color-bg: #050508;
     --color-primary: #00ff9d;
     /* Verde Bioluminiscente */
     --color-secondary: #00c3ff;
@@ -57,61 +57,13 @@ body {
     background-color: rgba(0, 255, 157, 0.1);
 }
 
-#particle-canvas {
+#hydra-fondo {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: -2;
-}
-
-.blob-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
     z-index: -1;
-    filter: blur(80px) opacity(0.6);
-}
-
-.blob {
-    position: absolute;
-    border-radius: 50%;
-    opacity: 0.7;
-}
-
-.blob:nth-child(1) {
-    width: 40vmax;
-    height: 40vmax;
-    background-color: var(--color-primary);
-    animation: move 25s infinite alternate;
-}
-
-.blob:nth-child(2) {
-    width: 30vmax;
-    height: 30vmax;
-    background-color: var(--color-secondary);
-    animation: move 30s infinite alternate-reverse;
-}
-
-.blob:nth-child(3) {
-    width: 20vmax;
-    height: 20vmax;
-    background-color: var(--color-accent);
-    animation: move 20s infinite alternate;
-}
-
-@keyframes move {
-    from {
-        transform: translate(10vw, -20vh) rotate(0deg) scale(1);
-    }
-
-    to {
-        transform: translate(-20vw, 30vh) rotate(360deg) scale(1.2);
-    }
 }
 
 /* 3. Layout & Sections
@@ -126,6 +78,16 @@ footer {
     margin: 0 auto;
 }
 
+.glass-container {
+    position: relative;
+    z-index: 1;
+    background: rgba(10, 10, 20, 0.3);
+    backdrop-filter: blur(10px) saturate(1.5);
+    border-radius: 15px;
+    border: 1px solid rgba(0, 255, 157, 0.1);
+    padding: 2rem;
+}
+
 .hero-section {
     min-height: 100vh;
     display: flex;
@@ -137,9 +99,9 @@ footer {
 
 .content-section {
     padding: 4rem 1rem;
-    background: rgba(10, 10, 20, 0.3);
+    background: rgba(10, 10, 20, 0.1);
     backdrop-filter: blur(5px);
-    border: 1px solid rgba(0, 255, 157, 0.1);
+    border: 1px solid rgba(0, 255, 157, 0.05);
     border-radius: 15px;
     margin-bottom: 2rem;
 }
