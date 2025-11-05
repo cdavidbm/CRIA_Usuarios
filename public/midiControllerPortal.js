@@ -9,6 +9,9 @@ export class MIDIController {
         this.sizeSlider = null;
         this.colorSlider = null;
         this.sendButton = null;
+        this.toggleWireframeButton = null;
+        this.toggleRotationButton = null;
+        this.randomAnimationButton = null;
     }
 
     /**
@@ -20,6 +23,9 @@ export class MIDIController {
         this.sizeSlider = document.getElementById('modelSize');
         this.colorSlider = document.getElementById('modelColor');
         this.sendButton = document.getElementById('sendModel');
+        this.toggleWireframeButton = document.getElementById('toggleWireframe');
+        this.toggleRotationButton = document.getElementById('toggleRotation');
+        this.randomAnimationButton = document.getElementById('randomAnimation');
 
         if (!navigator.requestMIDIAccess) {
             console.warn('MIDI no soportado en este navegador');
@@ -108,14 +114,28 @@ export class MIDIController {
      */
     handleNoteOn(note) {
         switch (note) {
-            // Botón para enviar modelo (Notas 60, 62, 64, 65)
             case 60:
-            case 62:
-            case 64:
-            case 65:
                 if (this.sendButton) {
                     console.log(`MIDI Note ${note}: Activando Enviar a Entorno`);
                     this.sendButton.click();
+                }
+                break;
+            case 62:
+                if (this.toggleWireframeButton) {
+                    console.log(`MIDI Note ${note}: Activando Wireframe`);
+                    this.toggleWireframeButton.click();
+                }
+                break;
+            case 64:
+                if (this.toggleRotationButton) {
+                    console.log(`MIDI Note ${note}: Activando Rotar`);
+                    this.toggleRotationButton.click();
+                }
+                break;
+            case 65:
+                if (this.randomAnimationButton) {
+                    console.log(`MIDI Note ${note}: Activando Animación Aleatoria`);
+                    this.randomAnimationButton.click();
                 }
                 break;
         }
