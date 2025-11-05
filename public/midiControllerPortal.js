@@ -72,26 +72,18 @@ export class MIDIController {
     handleControlChange(cc, value) {
         let sliderIndex = -1;
 
-        // --- Mapeo para Controlador 1 (CC 20-25) ---
+        // --- Mapeo para Morph Targets (CC 20-25) ---
         if (cc >= 20 && cc <= 25) {
-            sliderIndex = cc - 20;
+            const sliderIndex = cc - 20;
+            if (this.morphSliders[sliderIndex]) {
+                const slider = this.morphSliders[sliderIndex];
+                const normalizedValue = value / 127;
+                slider.value = normalizedValue;
+                slider.dispatchEvent(new Event('input', { bubbles: true }));
+            }
         }
-        // --- Mapeo para Controlador 2 (CC 70-71, más los otros) ---
-        else if (cc >= 70 && cc <= 75) {
-            sliderIndex = cc - 70;
-        }
-
-        // Si el CC corresponde a un morph target
-        if (sliderIndex !== -1 && this.morphSliders[sliderIndex]) {
-            const slider = this.morphSliders[sliderIndex];
-            const normalizedValue = value / 127;
-            slider.value = normalizedValue;
-            slider.dispatchEvent(new Event('input', { bubbles: true }));
-            return; // Salimos para no evaluar otros CC
-        }
-
-        // Control de tamaño (CC 76)
-        if (cc === 76) {
+        // --- Mapeo para Size Slider (CC 70) ---
+        else if (cc === 70) {
             if (this.sizeSlider) {
                 const min = parseFloat(this.sizeSlider.min);
                 const max = parseFloat(this.sizeSlider.max);
@@ -100,9 +92,8 @@ export class MIDIController {
                 this.sizeSlider.dispatchEvent(new Event('input', { bubbles: true }));
             }
         }
-
-        // Control de color (CC 77)
-        if (cc === 77) {
+        // --- Mapeo para Color Slider (CC 71) ---
+        else if (cc === 71) {
             if (this.colorSlider) {
                 const colorValue = Math.round((value / 127) * 360);
                 this.colorSlider.value = colorValue;
@@ -117,28 +108,15 @@ export class MIDIController {
      */
     handleNoteOn(note) {
         switch (note) {
-            // Botón para enviar modelo (Nota 60, C4)
+            // Botón para enviar modelo (Notas 60, 62, 64, 65)
             case 60:
+            case 62:
+            case 64:
+            case 65:
                 if (this.sendButton) {
-                    console.log('MIDI Note 60: Activando Enviar a Entorno');
+                    console.log(`MIDI Note ${note}: Activando Enviar a Entorno`);
                     this.sendButton.click();
                 }
-                break;
-            
-            // Botones adicionales (placeholders)
-            case 62: // Nota D4
-                console.log('MIDI Note 62 recibido (Botón sin asignar)');
-                // Futura acción: this.randomizeButton.click();
-                break;
-            
-            case 64: // Nota E4
-                console.log('MIDI Note 64 recibido (Botón sin asignar)');
-                // Futura acción: this.resetButton.click();
-                break;
-
-            case 65: // Nota F4
-                console.log('MIDI Note 65 recibido (Botón sin asignar)');
-                // Futura acción: this.anotherButton.click();
                 break;
         }
     }
