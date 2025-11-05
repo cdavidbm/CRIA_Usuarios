@@ -338,6 +338,26 @@
             box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
         }
 
+        .extra-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .extra-controls button {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            background-color: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .extra-controls button:hover {
+            background-color: rgba(255, 255, 255, 0.4);
+        }
+
         .value-display {
             display: inline-block;
             background: rgba(255, 255, 255, 0.9);
@@ -536,6 +556,12 @@
             <div class="slider-group">
                 <label for="modelColor">Color</label>
                 <input type="range" id="modelColor" min="0" max="360" step="1" value="0">
+            </div>
+
+            <div class="extra-controls">
+                <button id="toggleWireframe">Wireframe</button>
+                <button id="toggleRotation">Rotar</button>
+                <button id="randomAnimation">Animación Aleatoria</button>
             </div>
 
             <button id="sendModel">

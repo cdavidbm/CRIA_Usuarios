@@ -2,6 +2,8 @@ import { MIDIController } from './midiControllerPortal.js';
 const socket = io();
 let scene, camera, renderer, model, controls, clock;
 let isAnimating = true;
+let isRotating = true;
+let randomAnimation = null;
 
 function init() {
     // Inicializar escena
@@ -169,7 +171,12 @@ function animate() {
     const delta = clock.getDelta();
 
     if (model) {
-        model.rotation.y += 0.005; // Rotación suave
+        if (isRotating) {
+            model.rotation.y += 0.005; // Rotación suave
+        }
+        if (randomAnimation) {
+            randomAnimation(delta);
+        }
     }
 
     controls.update();
@@ -232,6 +239,47 @@ document.getElementById('sendModel').addEventListener('click', () => {
         socket.emit('cube-created', modelData);
     }
 });
+
+document.getElementById('toggleWireframe').addEventListener('click', () => {
+    if (!model) return;
+    let isWireframe = false;
+    model.traverse((child) => {
+        if (child.isMesh) {
+            if (child.material.wireframe) {
+                isWireframe = true;
+            }
+        }
+    });
+
+    model.traverse((child) => {
+        if (child.isMesh) {
+            child.material.wireframe = !isWireframe;
+        }
+    });
+});
+
+document.getElementById('toggleRotation').addEventListener('click', () => {
+    isRotating = !isRotating;
+});
+
+document.getElementById('randomAnimation').addEventListener('click', () => {
+    if (randomAnimation) {
+        randomAnimation = null;
+        // Reset model rotation
+        if(model) {
+            model.rotation.set(0, 0, 0);
+        }
+    } else {
+        const axis = ['x', 'y', 'z'][Math.floor(Math.random() * 3)];
+        const speed = (Math.random() - 0.5) * 0.05;
+        const time = { value: 0 };
+        randomAnimation = (delta) => {
+            time.value += delta;
+            model.rotation[axis] = Math.sin(time.value * speed * 10) * Math.PI;
+        };
+    }
+});
+
 
 // Función para mostrar feedback visual
 function showFeedback(message) {
