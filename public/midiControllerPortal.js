@@ -49,16 +49,18 @@ export class MIDIController {
      * @param {MIDIMessageEvent} event - Evento MIDI del dispositivo
      */
     handleMIDIMessage(event) {
-        const [status, cc, value] = event.data;
+        const [status, data1, data2] = event.data;
+        const command = status & 0xF0;
+        const channel = status & 0x0F;
 
-        // Mensajes de Control Change (CC)
-        if ((status & 0xF0) === 0xB0) {
-            this.handleControlChange(cc, value);
+        // Mensajes de Control Change (CC) en cualquier canal
+        if (command === 0xB0) {
+            this.handleControlChange(data1, data2);
         }
 
-        // Mensajes de Note On
-        if ((status & 0xF0) === 0x90 && value > 0) {
-            this.handleNoteOn(cc); // cc es el número de nota
+        // Mensajes de Note On en cualquier canal (con velocidad > 0)
+        if (command === 0x90 && data2 > 0) {
+            this.handleNoteOn(data1); // data1 es el número de nota
         }
     }
 
@@ -68,15 +70,24 @@ export class MIDIController {
      * @param {number} value - Valor del control (0-127)
      */
     handleControlChange(cc, value) {
-        // Morph targets (CC 70-75)
-        if (cc >= 70 && cc <= 75) {
-            const sliderIndex = cc - 70;
-            if (this.morphSliders[sliderIndex]) {
-                const slider = this.morphSliders[sliderIndex];
-                const normalizedValue = value / 127;
-                slider.value = normalizedValue;
-                slider.dispatchEvent(new Event('input', { bubbles: true }));
-            }
+        let sliderIndex = -1;
+
+        // --- Mapeo para Controlador 1 (CC 20-25) ---
+        if (cc >= 20 && cc <= 25) {
+            sliderIndex = cc - 20;
+        }
+        // --- Mapeo para Controlador 2 (CC 70-71, más los otros) ---
+        else if (cc >= 70 && cc <= 75) {
+            sliderIndex = cc - 70;
+        }
+
+        // Si el CC corresponde a un morph target
+        if (sliderIndex !== -1 && this.morphSliders[sliderIndex]) {
+            const slider = this.morphSliders[sliderIndex];
+            const normalizedValue = value / 127;
+            slider.value = normalizedValue;
+            slider.dispatchEvent(new Event('input', { bubbles: true }));
+            return; // Salimos para no evaluar otros CC
         }
 
         // Control de tamaño (CC 76)
@@ -105,11 +116,30 @@ export class MIDIController {
      * @param {number} note - Número de nota MIDI
      */
     handleNoteOn(note) {
-        // Botón para enviar modelo (Nota 36, C2)
-        if (note === 36) {
-            if (this.sendButton) {
-                this.sendButton.click();
-            }
+        switch (note) {
+            // Botón para enviar modelo (Nota 60, C4)
+            case 60:
+                if (this.sendButton) {
+                    console.log('MIDI Note 60: Activando Enviar a Entorno');
+                    this.sendButton.click();
+                }
+                break;
+            
+            // Botones adicionales (placeholders)
+            case 62: // Nota D4
+                console.log('MIDI Note 62 recibido (Botón sin asignar)');
+                // Futura acción: this.randomizeButton.click();
+                break;
+            
+            case 64: // Nota E4
+                console.log('MIDI Note 64 recibido (Botón sin asignar)');
+                // Futura acción: this.resetButton.click();
+                break;
+
+            case 65: // Nota F4
+                console.log('MIDI Note 65 recibido (Botón sin asignar)');
+                // Futura acción: this.anotherButton.click();
+                break;
         }
     }
 }

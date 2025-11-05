@@ -16,8 +16,8 @@ const int PIN_BOTON_4 = 5; // Pulsador 4 conectado al pin digital 5
 
 // --- Números de Control Change (CC) para cada potenciómetro ---
 // Estos números identifican cada control en el software DAW o sintetizador
-const int CC_POT_1 = 20; // CC número 20 para potenciómetro 1 (ej: volumen)
-const int CC_POT_2 = 21; // CC número 21 para potenciómetro 2 (ej: filtro)
+const int CC_POT_1 = 70; // CC número 20 para potenciómetro 1 (ej: volumen)
+const int CC_POT_2 = 71; // CC número 21 para potenciómetro 2 (ej: filtro)
 
 // --- Notas MIDI para los 4 Pulsadores ---
 // Cada botón envía una nota diferente cuando se presiona
