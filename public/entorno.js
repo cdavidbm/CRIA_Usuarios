@@ -29,6 +29,9 @@ class ModelViewer {
         this.tempMatrix = new THREE.Matrix4();
         this.hatchingEggs = [];
 
+        // Tracker de colisiones para el dashboard
+        this.collisionHistory = new Map(); // Map<modelId, Array<{withId, timestamp}>>
+
         // Bind 'this' for event handlers
         this.onSelectStart = this.onSelectStart.bind(this);
         this.onSelectEnd = this.onSelectEnd.bind(this);
@@ -36,6 +39,7 @@ class ModelViewer {
         this.init();
         this.setupSocketListeners();
         this.setupEventListeners();
+        this.startDataBroadcast(); // Iniciar broadcast de datos
     }
 
     init() {
@@ -836,6 +840,9 @@ class ModelViewer {
                 if (distance < radiusA + radiusB) {
                     // --- Colisión detectada ---
 
+                    // Registrar colisión en el historial
+                    this.recordCollision(modelA.userData.id, modelB.userData.id);
+
                     // 1. Calcular normal y vector tangente
                     const collisionNormal = modelB.position.clone().sub(modelA.position).normalize();
 
@@ -927,6 +934,64 @@ class ModelViewer {
 
     showError(message) {
         this.showNotification(message, 'error');
+    }
+
+    // Método para registrar colisiones
+    recordCollision(idA, idB) {
+        const timestamp = Date.now();
+
+        if (!this.collisionHistory.has(idA)) {
+            this.collisionHistory.set(idA, []);
+        }
+        if (!this.collisionHistory.has(idB)) {
+            this.collisionHistory.set(idB, []);
+        }
+
+        this.collisionHistory.get(idA).push({ withId: idB, timestamp });
+        this.collisionHistory.get(idB).push({ withId: idA, timestamp });
+
+        // Limitar el historial a las últimas 10 colisiones por criatura
+        if (this.collisionHistory.get(idA).length > 10) {
+            this.collisionHistory.get(idA).shift();
+        }
+        if (this.collisionHistory.get(idB).length > 10) {
+            this.collisionHistory.get(idB).shift();
+        }
+    }
+
+    // Método para iniciar el broadcast de datos
+    startDataBroadcast() {
+        setInterval(() => {
+            const creaturesData = this.models.map(model => {
+                const now = Date.now();
+                const age = (now - model.userData.createdAt) / 1000; // en segundos
+                const remainingLife = model.userData.lifespan;
+
+                return {
+                    id: model.userData.id,
+                    position: {
+                        x: model.position.x.toFixed(2),
+                        y: model.position.y.toFixed(2),
+                        z: model.position.z.toFixed(2)
+                    },
+                    color: model.userData.originalData.color,
+                    size: model.userData.originalSize,
+                    velocity: {
+                        x: model.userData.velocity.x.toFixed(3),
+                        y: model.userData.velocity.y.toFixed(3),
+                        z: model.userData.velocity.z.toFixed(3),
+                        magnitude: model.userData.velocity.length().toFixed(3)
+                    },
+                    age: age.toFixed(1),
+                    remainingLife: remainingLife.toFixed(1),
+                    dominantShape: model.userData.dominantShape,
+                    morphTargets: model.userData.originalData.morphTargets,
+                    collisions: this.collisionHistory.get(model.userData.id) || []
+                };
+            });
+
+            this.socket.emit('creatures-update', creaturesData);
+        }, 500); // Actualizar cada 500ms
     }
 
     // Método público para obtener estadísticas

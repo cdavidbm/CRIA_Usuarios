@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C.R.I.A. - Dashboard de Criaturas</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+
+    <!-- Socket.IO -->
+    <script src="/socket.io/socket.io.js"></script>
+
+    <!-- Three.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <style>
+        /* Variables & Global Resets */
+        :root {
+            --color-bg: #050508;
+            --color-primary: #00ff9d;
+            --color-secondary: #00c3ff;
+            --color-accent: #a64dff;
+            --color-text: #e0e0e0;
+            --color-text-dark: #1a1a2e;
+            --font-title: 'Orbitron', sans-serif;
+            --font-body: 'Roboto', sans-serif;
+            --glow-primary: 0 0 5px var(--color-primary), 0 0 10px var(--color-primary), 0 0 20px var(--color-primary);
+            --glow-secondary: 0 0 5px var(--color-secondary), 0 0 10px var(--color-secondary);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            font-family: var(--font-body);
+            line-height: 1.6;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Hydra Background */
+        #hydra-fondo {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            padding: 2rem 0;
+            background: rgba(10, 10, 20, 0.3);
+            backdrop-filter: blur(10px) saturate(1.5);
+            border-radius: 15px;
+            border: 1px solid rgba(0, 255, 157, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-family: var(--font-title);
+            color: var(--color-primary);
+            text-shadow: var(--glow-primary);
+            font-size: clamp(1.5rem, 5vw, 3rem);
+            letter-spacing: 0.3rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            font-family: var(--font-body);
+            color: var(--color-secondary);
+            text-shadow: var(--glow-secondary);
+            font-size: clamp(0.8rem, 2vw, 1rem);
+        }
+
+        /* Connection Status */
+        .status-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: rgba(10, 10, 20, 0.5);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 255, 157, 0.2);
+            border-radius: 10px;
+            margin-bottom: 2rem;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #f44336;
+            box-shadow: 0 0 10px #f44336;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.connected {
+            background-color: var(--color-primary);
+            box-shadow: var(--glow-primary);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .creature-count {
+            font-family: var(--font-title);
+            color: var(--color-primary);
+            font-size: 1.2rem;
+        }
+
+        /* Dashboard Grid */
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+            padding: 1rem 0;
+        }
+
+        /* Creature Card */
+        .creature-card {
+            background: rgba(10, 10, 20, 0.5);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 255, 157, 0.2);
+            border-radius: 15px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .creature-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--color-secondary);
+            box-shadow: var(--glow-secondary);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Card Header */
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(0, 255, 157, 0.1);
+        }
+
+        .creature-id {
+            font-family: var(--font-title);
+            color: var(--color-primary);
+            font-size: 0.9rem;
+            text-shadow: var(--glow-primary);
+        }
+
+        .creature-shape {
+            font-size: 1.5rem;
+        }
+
+        /* 3D Preview */
+        .preview-container {
+            width: 100%;
+            height: 150px;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 195, 255, 0.2);
+        }
+
+        .preview-container canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        /* Info Grid */
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .info-item {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.5rem;
+            border-radius: 8px;
+            border: 1px solid rgba(0, 195, 255, 0.1);
+        }
+
+        .info-label {
+            font-size: 0.75rem;
+            color: var(--color-secondary);
+            text-transform: uppercase;
+            margin-bottom: 0.25rem;
+            letter-spacing: 0.05rem;
+        }
+
+        .info-value {
+            font-family: var(--font-title);
+            color: var(--color-primary);
+            font-size: 1rem;
+            text-shadow: var(--glow-primary);
+        }
+
+        /* Progress Bars */
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--color-accent), var(--color-primary));
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px var(--color-primary);
+        }
+
+        /* Collisions List */
+        .collisions-section {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(0, 255, 157, 0.1);
+        }
+
+        .collisions-title {
+            font-size: 0.75rem;
+            color: var(--color-secondary);
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.05rem;
+        }
+
+        .collision-item {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.5rem;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            border: 1px solid rgba(166, 77, 255, 0.2);
+        }
+
+        .collision-time {
+            color: var(--color-accent);
+            font-size: 0.75rem;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: rgba(10, 10, 20, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 255, 157, 0.1);
+            border-radius: 15px;
+        }
+
+        .empty-state h2 {
+            font-family: var(--font-title);
+            color: var(--color-secondary);
+            margin-bottom: 1rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .dashboard {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            h1 {
+                letter-spacing: 0.15rem;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Loading Animation */
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            font-family: var(--font-title);
+            color: var(--color-primary);
+            text-shadow: var(--glow-primary);
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="hydra-fondo"></canvas>
+
+    <div class="container">
+        <header>
+            <h1>C.R.I.A.</h1>
+            <p class="subtitle">Dashboard de Criaturas en Tiempo Real</p>
+        </header>
+
+        <div class="status-bar">
+            <div class="status-indicator" id="statusIndicator"></div>
+            <span id="statusText">Conectando...</span>
+            <div class="creature-count">
+                Criaturas activas: <span id="creatureCount">0</span>
+            </div>
+        </div>
+
+        <div class="dashboard" id="dashboard">
+            <div class="loading">Esperando datos del entorno...</div>
+        </div>
+    </div>
+
+    <!-- Hydra Background -->
+    <script src="https://unpkg.com/hydra-synth"></script>
+    <script src="fondoHydra.js"></script>
+
+    <!-- Main Script -->
+    <script type="module">
+        const socket = io();
+        const dashboard = document.getElementById('dashboard');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+        const creatureCount = document.getElementById('creatureCount');
+
+        // Map to store creature cards and their 3D scenes
+        const creatureCards = new Map();
+        const modelCache = new Map(); // Cache for loaded models
+
+        // Socket connection status
+        socket.on('connect', () => {
+            console.log('Conectado al servidor');
+            statusIndicator.classList.add('connected');
+            statusText.textContent = 'Conectado';
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Desconectado del servidor');
+            statusIndicator.classList.remove('connected');
+            statusText.textContent = 'Desconectado';
+        });
+
+        // Listen for creature data updates
+        socket.on('creatures-data', (creaturesData) => {
+            console.log('Datos recibidos:', creaturesData);
+            updateDashboard(creaturesData);
+        });
+
+        // Update dashboard with creature data
+        function updateDashboard(creatures) {
+            creatureCount.textContent = creatures.length;
+
+            if (creatures.length === 0) {
+                dashboard.innerHTML = `
+                    <div class="empty-state">
+                        <h2>No hay criaturas activas</h2>
+                        <p>Las criaturas aparecerán aquí cuando se creen en el entorno</p>
+                    </div>
+                `;
+                creatureCards.clear();
+                return;
+            }
+
+            // Get current creature IDs
+            const currentIds = new Set(creatures.map(c => c.id));
+
+            // Remove cards for creatures that no longer exist
+            for (const [id, cardData] of creatureCards.entries()) {
+                if (!currentIds.has(id)) {
+                    cardData.element.remove();
+                    if (cardData.scene) {
+                        disposeScene(cardData.scene);
+                    }
+                    creatureCards.delete(id);
+                }
+            }
+
+            // Update or create cards
+            creatures.forEach(creature => {
+                if (creatureCards.has(creature.id)) {
+                    updateCreatureCard(creature);
+                } else {
+                    createCreatureCard(creature);
+                }
+            });
+        }
+
+        // Create a new creature card
+        function createCreatureCard(creature) {
+            const card = document.createElement('div');
+            card.className = 'creature-card';
+            card.id = `creature-${creature.id}`;
+
+            const shapeEmoji = getShapeEmoji(creature.dominantShape);
+
+            card.innerHTML = `
+                <div class="card-header">
+                    <div class="creature-id">ID: ${creature.id.toString().slice(-8)}</div>
+                    <div class="creature-shape">${shapeEmoji}</div>
+                </div>
+
+                <div class="preview-container" id="preview-${creature.id}"></div>
+
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Posición</div>
+                        <div class="info-value" id="pos-${creature.id}">
+                            X: ${creature.position.x}<br>
+                            Y: ${creature.position.y}<br>
+                            Z: ${creature.position.z}
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Velocidad</div>
+                        <div class="info-value" id="vel-${creature.id}">
+                            ${creature.velocity.magnitude} u/s
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Tamaño</div>
+                        <div class="info-value">${creature.size}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Edad</div>
+                        <div class="info-value" id="age-${creature.id}">${creature.age}s</div>
+                    </div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">Tiempo de vida restante: <span id="life-${creature.id}">${creature.remainingLife}s</span></div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-${creature.id}"></div>
+                    </div>
+                </div>
+
+                <div class="collisions-section">
+                    <div class="collisions-title">Colisiones Recientes (${creature.collisions.length})</div>
+                    <div id="collisions-${creature.id}"></div>
+                </div>
+            `;
+
+            dashboard.appendChild(card);
+
+            // Initialize 3D preview
+            init3DPreview(creature);
+
+            // Store card reference
+            creatureCards.set(creature.id, {
+                element: card,
+                scene: null, // Will be set by init3DPreview
+                renderer: null,
+                camera: null,
+                model: null
+            });
+
+            // Initial update
+            updateCreatureCard(creature);
+        }
+
+        // Update existing creature card
+        function updateCreatureCard(creature) {
+            document.getElementById(`pos-${creature.id}`).innerHTML = `
+                X: ${creature.position.x}<br>
+                Y: ${creature.position.y}<br>
+                Z: ${creature.position.z}
+            `;
+            document.getElementById(`vel-${creature.id}`).textContent = `${creature.velocity.magnitude} u/s`;
+            document.getElementById(`age-${creature.id}`).textContent = `${creature.age}s`;
+            document.getElementById(`life-${creature.id}`).textContent = `${creature.remainingLife}s`;
+
+            // Update progress bar
+            const progress = (parseFloat(creature.remainingLife) / 180) * 100;
+            document.getElementById(`progress-${creature.id}`).style.width = `${progress}%`;
+
+            // Update collisions
+            const collisionsContainer = document.getElementById(`collisions-${creature.id}`);
+            if (creature.collisions.length === 0) {
+                collisionsContainer.innerHTML = '<div style="opacity: 0.5; font-size: 0.85rem;">Sin colisiones</div>';
+            } else {
+                collisionsContainer.innerHTML = creature.collisions.slice(-3).reverse().map(collision => {
+                    const timeAgo = Math.floor((Date.now() - collision.timestamp) / 1000);
+                    return `
+                        <div class="collision-item">
+                            Con criatura: ${collision.withId.toString().slice(-8)}
+                            <div class="collision-time">Hace ${timeAgo}s</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Rotate 3D model if exists
+            const cardData = creatureCards.get(creature.id);
+            if (cardData && cardData.model) {
+                cardData.model.rotation.y += 0.02;
+                if (cardData.renderer && cardData.scene && cardData.camera) {
+                    cardData.renderer.render(cardData.scene, cardData.camera);
+                }
+            }
+        }
+
+        // Initialize 3D preview for creature
+        function init3DPreview(creature) {
+            const container = document.getElementById(`preview-${creature.id}`);
+            if (!container) return;
+
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e);
+
+            const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(0, 0, 4);
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 5, 5);
+            scene.add(directionalLight);
+
+            // Load model
+            loadCreatureModel(creature, scene, renderer, camera);
+
+            // Store scene data
+            const cardData = creatureCards.get(creature.id);
+            if (cardData) {
+                cardData.scene = scene;
+                cardData.renderer = renderer;
+                cardData.camera = camera;
+            }
+
+            // Animation loop for this preview
+            function animate() {
+                if (!creatureCards.has(creature.id)) return; // Stop if card removed
+
+                const cardData = creatureCards.get(creature.id);
+                if (cardData && cardData.model) {
+                    cardData.model.rotation.y += 0.01;
+                    renderer.render(scene, camera);
+                }
+
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        // Load creature 3D model
+        async function loadCreatureModel(creature, scene, renderer, camera) {
+            try {
+                const loader = new THREE.GLTFLoader();
+                const textureLoader = new THREE.TextureLoader();
+
+                // Check cache
+                let gltf;
+                if (modelCache.has('/assets/modelo.glb')) {
+                    gltf = { scene: modelCache.get('/assets/modelo.glb').clone(true) };
+                } else {
+                    gltf = await new Promise((resolve, reject) => {
+                        loader.load('/assets/modelo.glb', resolve, undefined, reject);
+                    });
+                    modelCache.set('/assets/modelo.glb', gltf.scene);
+                }
+
+                const model = gltf.scene.clone(true);
+
+                // Apply MatCap material
+                const matcapTexture = textureLoader.load('/assets/matcap_iridescent.png');
+                const matcapMaterial = new THREE.MeshMatcapMaterial({ matcap: matcapTexture });
+
+                // Apply color
+                const hue = parseInt(creature.color) / 360;
+                matcapMaterial.color.setHSL(hue, 0.7, 0.5);
+
+                // Apply morphTargets and material
+                model.traverse((child) => {
+                    if (child.isMesh) {
+                        child.material = matcapMaterial.clone();
+
+                        // Apply morphTargets
+                        if (child.morphTargetDictionary && creature.morphTargets && creature.morphTargets[child.name]) {
+                            const morphData = creature.morphTargets[child.name];
+                            if (morphData.influences) {
+                                morphData.influences.forEach((influence, index) => {
+                                    if (index < child.morphTargetInfluences.length) {
+                                        child.morphTargetInfluences[index] = influence;
+                                    }
+                                });
+                            }
+                        }
+                    }
+                });
+
+                // Center model
+                const box = new THREE.Box3().setFromObject(model);
+                const center = box.getCenter(new THREE.Vector3());
+                model.position.sub(center);
+
+                // Scale model
+                const size = box.getSize(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const scale = 2 / maxDim;
+                model.scale.multiplyScalar(scale);
+
+                scene.add(model);
+
+                // Store model reference
+                const cardData = creatureCards.get(creature.id);
+                if (cardData) {
+                    cardData.model = model;
+                }
+
+                renderer.render(scene, camera);
+            } catch (error) {
+                console.error('Error loading creature model:', error);
+            }
+        }
+
+        // Get emoji for shape
+        function getShapeEmoji(shape) {
+            const emojiMap = {
+                '🪼 Medusa': '🪼',
+                '🪸 Coral': '🪸',
+                '🐙 Pulpo': '🐙',
+                '🌸 Flor': '🌸',
+                '🌵 Cactus': '🌵',
+                '🌿 Helecho': '🌿',
+                'default': '🌟'
+            };
+            return emojiMap[shape] || emojiMap.default;
+        }
+
+        // Dispose scene resources
+        function disposeScene(scene) {
+            if (!scene) return;
+
+            scene.traverse((object) => {
+                if (object.geometry) {
+                    object.geometry.dispose();
+                }
+                if (object.material) {
+                    if (Array.isArray(object.material)) {
+                        object.material.forEach(material => material.dispose());
+                    } else {
+                        object.material.dispose();
+                    }
+                }
+            });
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            creatureCards.forEach((cardData, id) => {
+                const container = document.getElementById(`preview-${id}`);
+                if (container && cardData.renderer && cardData.camera) {
+                    cardData.camera.aspect = container.clientWidth / container.clientHeight;
+                    cardData.camera.updateProjectionMatrix();
+                    cardData.renderer.setSize(container.clientWidth, container.clientHeight);
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

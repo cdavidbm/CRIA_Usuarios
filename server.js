@@ -28,6 +28,11 @@ io.on('connection', (socket) => {
         console.log('Modelo enviado a otros clientes');
     });
 
+    // Relay de datos de criaturas para el dashboard
+    socket.on('creatures-update', (creaturesData) => {
+        socket.broadcast.emit('creatures-data', creaturesData);
+    });
+
     socket.on('disconnect', () => {
         console.log('Cliente desconectado');
     });
